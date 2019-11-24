@@ -1,0 +1,2 @@
+include ':app', ':docuscanlib'
+rootProject.name='DocuScan'
