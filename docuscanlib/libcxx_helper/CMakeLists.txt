@@ -7,4 +7,4 @@ set(target docuscanlib)
 project(${target} CXX)
 
 # dummy target to bring libc++_shared.so into packages
-add_library(opencv_jni_shared STATIC dummy.cpp)
+add_library(opencv_jni_shared SHARED ../native/src/DocuScan.cpp)
