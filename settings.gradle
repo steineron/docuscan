@@ -1,7 +1,11 @@
-include ':app', ':docuscanlib'
-rootProject.name='DocuScan'
+def opencvsdk = 'Users/ron.steiner/Downloads/OpenCV-android-sdk 2/'
+
+
+rootProject.name = 'DocuScan'
 
 //   // You can put declaration above into gradle.properties file instead (including file in HOME directory),
 //   // but without 'def' and apostrophe symbols ('): opencvsdk=<path_to_opencv_android_sdk_rootdir>
-//   include ':opencv'
-//   project(':opencv').projectDir = new File(opencvsdk + '/sdk')
+//include ':opencv'
+//project(':opencv').projectDir = new File(opencvsdk + '/sdk')
+
+include ':app', ':docuscanlib', ':opencv'

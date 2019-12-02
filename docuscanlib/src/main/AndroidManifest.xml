@@ -1,2 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.locii.docuscanlib" />
+    package="com.locii.docuscanlib" >
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+</manifest>

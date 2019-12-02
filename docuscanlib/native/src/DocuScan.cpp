@@ -13,15 +13,31 @@
 using namespace std;
 using namespace cv;
 
+static void processImage(Mat &srcImage);
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
-        JNIEnv* env,
+        JNIEnv *env,
         jobject /* this */) {
     std::string hello = "Hello from C++";
     return env->NewStringUTF(hello.c_str());
 }
 
+extern "C" {
+JNIEXPORT jlong JNICALL
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addsSrcMAt);
 
+
+JNIEXPORT jlong JNICALL
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addsSrcMAt) {
+    Mat &src = *(Mat *) addsSrcMAt;
+    processImage(src);
+    return -1;
+
+    // perhaps better call env->OnResultMat(...));
+}
+
+}
 
 
 /**
@@ -31,16 +47,16 @@ Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
  * @param points
  * @return the point in points closest to p
  */
-static Point2f closestPoint(Point &p, Point2f points[], int nPoints){
+static Point2f closestPoint(Point &p, Point2f points[], int nPoints) {
 
     int minDistance = INT_MAX;
     Point2f result;
-    for(int i=0; i<nPoints; i++){
+    for (int i = 0; i < nPoints; i++) {
         Point2f candidate = points[i];
         int distance = pow(candidate.x - p.x, 2) + pow(candidate.y - p.y, 2);
-        if(distance < minDistance){
-            minDistance=distance;
-            result=candidate;
+        if (distance < minDistance) {
+            minDistance = distance;
+            result = candidate;
         }
     }
 
@@ -58,10 +74,10 @@ static void processImage(Mat &srcImage) {
 
 
     Mat lap;
-    Mat mean(1,4,CV_64F), stdDev(1,4,CV_64F);
+    Mat mean(1, 4, CV_64F), stdDev(1, 4, CV_64F);
 
     Laplacian(gray, lap, CV_64F);
-    meanStdDev(lap,mean,stdDev);
+    meanStdDev(lap, mean, stdDev);
 
     cout << "Sharpness:\n " << mean << " " << stdDev << endl;
 
@@ -156,7 +172,7 @@ static void processImage(Mat &srcImage) {
     Scalar blue = Scalar(255, 128, 0);
     Scalar red = Scalar(0, 128, 255);
     Scalar black = Scalar(0, 0, 0);
-    Scalar orange = Scalar(0,255,220);
+    Scalar orange = Scalar(0, 255, 220);
 
     String numbers[] = {"1", "2", "3", "4"};
 
@@ -165,14 +181,16 @@ static void processImage(Mat &srcImage) {
 
     for (int j = 0; j < 4; j++) {
         line(contouredImage, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
-        putText(contouredImage, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX,textScale,blue,textThinkness);
+        putText(contouredImage, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale, blue,
+                textThinkness);
         line(contouredImage, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage, numbers[j], box[j], FONT_HERSHEY_SIMPLEX,textScale,red,textThinkness);
+        putText(contouredImage, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
+                textThinkness);
     }
     // draw the bounding rect
     rectangle(contouredImage, Point(boundRect.x, boundRect.y),
-              Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), black, 3, LINE_AA);
-
+              Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), black, 3,
+              LINE_AA);
 
 
     imshow("contours", contouredImage);
@@ -184,13 +202,14 @@ static void processImage(Mat &srcImage) {
     std::vector<Point2f> boundingRectPoints;
     // poly to box:
 
-    for(int i=0; i<4; i++){
+    for (int i = 0; i < 4; i++) {
         polyPoints.push_back(Point2f(approxPoly[i].x, approxPoly[i].y));
-        boundingRectPoints.push_back(closestPoint(approxPoly[i], box,4));
+        boundingRectPoints.push_back(closestPoint(approxPoly[i], box, 4));
     }
 
     for (int j = 0; j < 4; j++) {
-        putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,textScale,black,textThinkness,LINE_8);
+        putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+                black, textThinkness, LINE_8);
         line(contouredImage, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
     }
 
@@ -225,9 +244,12 @@ static void processImage(Mat &srcImage) {
 
     for (int j = 0; j < 4; j++) {
         line(contouredImage, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX,textScale,red,textThinkness);
-        line(contouredImage, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3, LINE_AA);
-        putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,textScale,orange,textThinkness);
+        putText(contouredImage, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale, red,
+                textThinkness);
+        line(contouredImage, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3,
+             LINE_AA);
+        putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+                orange, textThinkness);
         line(contouredImage, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
     }
 
