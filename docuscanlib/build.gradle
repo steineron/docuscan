@@ -106,15 +106,15 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles 'consumer-rules.pro'
-
-        externalNativeBuild {
-            cmake {
-                arguments "-DOpenCV_DIR=" + project(':opencv').projectDir + "/sdk/native/jni",
-                        "-DANDROID_TOOLCHAIN=clang",
-                        "-DANDROID_STL=c++_shared"
-                //                targets "docuscan_jni_shared"
-            }
-        }
+//
+//        externalNativeBuild {
+//            cmake {
+//                arguments "-DOpenCV_DIR=" + project(':opencv-sdk').projectDir + "/native/jni",
+//                        "-DANDROID_TOOLCHAIN=clang",
+//                        "-DANDROID_STL=c++_shared"
+//                //                targets "docuscan_jni_shared"
+//            }
+//        }
     }
 
     buildTypes {
@@ -141,8 +141,6 @@ android {
     externalNativeBuild {
         cmake {
             path (project.projectDir.toString() + '/libcxx_helper/CMakeLists.txt')
-//            path "src/main/cpp/CMakeLists.txt"
-//            version "3.15.5"
         }
     }
 }
@@ -151,7 +149,7 @@ def camerax_version = '1.0.0-alpha06'
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation project(':opencv')
+    implementation project(':opencv-sdk')
 
     implementation "androidx.camera:camera-core:${camerax_version}"
     implementation "androidx.camera:camera-camera2:${camerax_version}"

@@ -8,4 +8,5 @@ rootProject.name = 'DocuScan'
 //include ':opencv'
 //project(':opencv').projectDir = new File(opencvsdk + '/sdk')
 
-include ':app', ':docuscanlib', ':opencv'
+include ':app', ':docuscanlib'
+include ':opencv-sdk'
