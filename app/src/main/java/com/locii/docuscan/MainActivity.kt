@@ -1,7 +1,9 @@
 package com.locii.docuscan
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import com.locii.docuscanlib.CameraPreviewActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
@@ -10,21 +12,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Example of a call to a native method
-        sample_text.text = stringFromJNI()
+        start_capturing.setOnClickListener {
+            Intent(this, CameraPreviewActivity::class.java).also {
+
+                startActivityForResult(it, 123)
+            }
+        }
+
     }
 
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
-    external fun stringFromJNI(): String
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
 
-    companion object {
-
-        // Used to load the 'native-lib' library on application startup.
-        init {
-            System.loadLibrary("native-lib")
+        data?.data?.let {
+            captured_document.setImageURI(it)
         }
     }
+
 }

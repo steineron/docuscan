@@ -84,23 +84,23 @@ static void processImage(Mat &srcImage) {
     // blur it to educe noise
     blur(gray, blurImage, Size(3, 3));
 
-    namedWindow("temp", 1);
-    imshow("temp", blurImage);
-    waitKey(0);
+//    namedWindow("temp", 1);
+//    imshow("temp", blurImage);
+//    waitKey(0);
 
 
     Mat binary;
     binary.create(gray.size(), CV_8UC1);
     // convert to binary image
     threshold(blurImage, binary, 25, 255, THRESH_BINARY_INV + THRESH_OTSU);
-
-    imshow("temp", binary);
-    waitKey(0);
+//
+//    imshow("temp", binary);
+//    waitKey(0);
 
     if (binary.type() != CV_8UC1) {
         binary.convertTo(binary, CV_8UC1);
-        imshow("temp", binary);
-        waitKey(0);
+//        imshow("temp", binary);
+//        waitKey(0);
 
     }
     // dilate, erode, dilate to further remove noise and small objects
@@ -114,8 +114,8 @@ static void processImage(Mat &srcImage) {
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
     Canny(binary, edge1, 1, 3, 3);
 
-    imshow("temp", edge1);
-    waitKey(0);
+//    imshow("temp", edge1);
+//    waitKey(0);
 
 
     int levels = 3;
@@ -160,9 +160,9 @@ static void processImage(Mat &srcImage) {
                  3, LINE_AA, hierarchy, std::abs(_levels));
 
 
-    namedWindow("contours", 1);
-    imshow("contours", contouredImage);
-    waitKey(0);
+//    namedWindow("contours", 1);
+//    imshow("contours", contouredImage);
+//    waitKey(0);
 
     RotatedRect rect = minAreaRect(contours[maxArea]);
     Rect boundRect = boundingRect(contours[maxArea]);
@@ -193,8 +193,8 @@ static void processImage(Mat &srcImage) {
               LINE_AA);
 
 
-    imshow("contours", contouredImage);
-    waitKey(0);
+//    imshow("contours", contouredImage);
+//    waitKey(0);
 
     // transform the skewed image
     std::vector<Point2f> polyPoints;
@@ -213,8 +213,8 @@ static void processImage(Mat &srcImage) {
         line(contouredImage, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
     }
 
-    imshow("contours", contouredImage);
-    waitKey(0);
+//    imshow("contours", contouredImage);
+//    waitKey(0);
 
     Mat transmtx = getPerspectiveTransform(polyPoints, boundingRectPoints);
     Mat transformed = Mat::zeros(srcImage.rows, srcImage.cols, CV_8UC3);
@@ -253,15 +253,15 @@ static void processImage(Mat &srcImage) {
         line(contouredImage, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
     }
 
-    namedWindow("contours-transformed", 1);
-    imshow("contours-transformed", contouredImage);
-    waitKey(0);
+//    namedWindow("contours-transformed", 1);
+//    imshow("contours-transformed", contouredImage);
+//    waitKey(0);
 
     transmtx = getPerspectiveTransform(polyPoints, boundingRectPoints);
     warpPerspective(transformed, transformed, transmtx, transformed.size());
 
-    namedWindow("transformed", 1);
-    imshow("transformed", transformed);
+//    namedWindow("transformed", 1);
+//    imshow("transformed", transformed);
 
 
 }
