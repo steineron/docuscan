@@ -61,6 +61,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        setContentView(R.layout.main_camera)
         // Add this at the end of onCreate function
 
         textureView = findViewById(R.id.view_finder)
@@ -162,29 +163,64 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         analyzerThread.start()
         val imageAnalysisConfig: ImageAnalysisConfig = ImageAnalysisConfig.Builder()
             .setImageReaderMode(ImageAnalysis.ImageReaderMode.ACQUIRE_LATEST_IMAGE)
-//            .setCallbackHandler(Handler(analyzerThread.looper))
             .setBackgroundExecutor(analysisExecutor)
             .setImageQueueDepth(1).build()
         val imageAnalysis = ImageAnalysis(imageAnalysisConfig)
-        imageAnalysis.setAnalyzer(analysisExecutor,
-            ImageAnalysis.Analyzer { image, rotationDegrees ->
-                //Analyzing live camera feed begins.
+        imageAnalysis.setAnalyzer(analysisExecutor, object : ImageAnalysis.Analyzer {
 
-                val bitmap = textureView.bitmap ?: return@Analyzer
+
+            val nativeDocScanner = object: DocuScan(){
+                override fun onResultMat(matAddrOut: Long) {
+                    val mat = Mat(matAddrOut)
+                    val bmp = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888)
+                    Utils.matToBitmap(mat, bmp)
+
+                    bmp.recycle()
+                    mat.release()
+
+                    CameraX.unbindAll()
+                    finish()
+                }
+
+            }
+            /**
+             * Analyzes an image to produce a result.
+             *
+             *
+             * This method is called once for each image from the camera, and called at the
+             * frame rate of the camera.  Each analyze call is executed sequentially.
+             *
+             *
+             * The caller is responsible for ensuring this analysis method can be executed quickly
+             * enough to prevent stalls in the image acquisition pipeline. Otherwise, newly available
+             * images will not be acquired and analyzed.
+             *
+             *
+             * The image passed to this method becomes invalid after this method returns. The caller
+             * should not store external references to this image, as these references will become
+             * invalid.
+             *
+             *
+             * Processing should complete within a single frame time of latency, or the image data
+             * should be copied out for longer processing.  Applications can be skip analyzing a frame
+             * by having the analyzer return immediately.
+             *
+             * @param image           The image to analyze
+             * @param rotationDegrees The rotation which if applied to the image would make it match
+             * the current target rotation of [ImageAnalysis], expressed in
+             * degrees in the range `[0..360)`.
+             */
+            override fun analyze(image: ImageProxy?, rotationDegrees: Int) {
+                val bitmap = textureView.bitmap ?: return
                 val mat = Mat()
                 Utils.bitmapToMat(bitmap, mat)
 //                Imgproc.cvtColor(mat, mat, currentImageType)
 //                Utils.matToBitmap(mat, bitmap)
 //                runOnUiThread { ivBitmap.setImageBitmap(bitmap) }
 
-                DocuScan().scanDocument(mat.nativeObjAddr).also { address ->
-                    if (address > 0) {
-                        result = Mat(address)
-
-                        // stop the camera and finish
-                    }
-                }
-            })
+                nativeDocScanner.scanDocument(mat.nativeObjAddr)
+            }
+        })
         return imageAnalysis
     }
 

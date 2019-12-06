@@ -13,7 +13,7 @@
 using namespace std;
 using namespace cv;
 
-static void processImage(Mat &srcImage);
+static Mat *processImage(Mat &srcImage);
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
@@ -29,9 +29,19 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addsSr
 
 
 JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addsSrcMAt) {
-    Mat &src = *(Mat *) addsSrcMAt;
-    processImage(src);
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addsSrcMat) {
+    Mat &src = *(Mat *) addsSrcMat;
+    Mat *processed = processImage(src);
+    if (processed != NULL) {
+
+        jclass pJclass = (env)->GetObjectClass(thiz);
+
+        jmethodID midCallback = (env)->GetMethodID(pJclass, "onResultMat", "(J)V");
+
+        (env)->CallVoidMethod(thiz, midCallback, (jlong) processed);
+
+        return 0;
+    }
     return -1;
 
     // perhaps better call env->OnResultMat(...));
@@ -66,7 +76,7 @@ static Point2f closestPoint(Point &p, Point2f points[], int nPoints) {
 
 const int w = 500;
 
-static void processImage(Mat &srcImage) {
+static Mat *processImage(Mat &srcImage) {
     Mat image, gray, blurImage, edge1;
 
     // create a BW image:
@@ -80,6 +90,11 @@ static void processImage(Mat &srcImage) {
     meanStdDev(lap, mean, stdDev);
 
     cout << "Sharpness:\n " << mean << " " << stdDev << endl;
+//
+//    if (mean > 15) {
+//        return NULL;
+//    }
+
 
     // blur it to educe noise
     blur(gray, blurImage, Size(3, 3));
@@ -132,8 +147,8 @@ static void processImage(Mat &srcImage) {
     // for extracting squares
 
     // or do this: find the contour with largest area - assume it is the document
-    Mat contouredImage = Mat::zeros(w, w, CV_8UC3);
-    srcImage.copyTo(contouredImage);
+//    Mat contouredImage = Mat::zeros(w, w, CV_8UC3);
+//    srcImage.copyTo(contouredImage);
     int _levels = levels - 3;
     int maxArea = 0, max = 0;
     vector<Point> approxPoly;
@@ -156,8 +171,8 @@ static void processImage(Mat &srcImage) {
         }
     }
 
-    drawContours(contouredImage, contours, maxArea, Scalar(128, 255, 255),
-                 3, LINE_AA, hierarchy, std::abs(_levels));
+//    drawContours(contouredImage, contours, maxArea, Scalar(128, 255, 255),
+//                 3, LINE_AA, hierarchy, std::abs(_levels));
 
 
 //    namedWindow("contours", 1);
@@ -179,18 +194,18 @@ static void processImage(Mat &srcImage) {
     double textScale = 5;
     int textThinkness = 4;
 
-    for (int j = 0; j < 4; j++) {
+    /*for (int j = 0; j < 4; j++) {
         line(contouredImage, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
         putText(contouredImage, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale, blue,
                 textThinkness);
         line(contouredImage, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
         putText(contouredImage, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
                 textThinkness);
-    }
+    }*/
     // draw the bounding rect
-    rectangle(contouredImage, Point(boundRect.x, boundRect.y),
+    /*rectangle(contouredImage, Point(boundRect.x, boundRect.y),
               Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), black, 3,
-              LINE_AA);
+              LINE_AA);*/
 
 
 //    imshow("contours", contouredImage);
@@ -207,10 +222,18 @@ static void processImage(Mat &srcImage) {
         boundingRectPoints.push_back(closestPoint(approxPoly[i], box, 4));
     }
 
+    double distance = 0;
     for (int j = 0; j < 4; j++) {
-        putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+        /*putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
                 black, textThinkness, LINE_8);
-        line(contouredImage, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
+        line(contouredImage, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);*/
+
+        distance += pow(boundingRectPoints[j].x - polyPoints[j].x, 2) +
+                    pow(boundingRectPoints[j].y - polyPoints[j].y, 2);
+    }
+
+    if (distance > 200.0) {
+        return NULL;
     }
 
 //    imshow("contours", contouredImage);
@@ -240,7 +263,7 @@ static void processImage(Mat &srcImage) {
     }
 
 
-    contouredImage = image.clone();
+    /*contouredImage = image.clone();
 
     for (int j = 0; j < 4; j++) {
         line(contouredImage, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
@@ -251,7 +274,7 @@ static void processImage(Mat &srcImage) {
         putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
                 orange, textThinkness);
         line(contouredImage, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
-    }
+    }*/
 
 //    namedWindow("contours-transformed", 1);
 //    imshow("contours-transformed", contouredImage);
@@ -262,6 +285,7 @@ static void processImage(Mat &srcImage) {
 
 //    namedWindow("transformed", 1);
 //    imshow("transformed", transformed);
+    return &transformed;
 
 
 }

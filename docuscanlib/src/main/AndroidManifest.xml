@@ -3,4 +3,7 @@
 
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <application>
+        <activity android:name="CameraPreviewActivity"/>
+    </application>
 </manifest>

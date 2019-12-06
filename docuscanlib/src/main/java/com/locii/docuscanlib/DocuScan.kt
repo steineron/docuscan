@@ -1,6 +1,6 @@
 package com.locii.docuscanlib
 
-class DocuScan{
+abstract class DocuScan{
 
     /**
      * A native method that is implemented by the 'docuscan_jni_shared' native library,
@@ -18,6 +18,8 @@ class DocuScan{
      *
      */
     external fun scanDocument(matAddrIn: Long): Long
+
+    abstract fun onResultMat(matAddrOut:Long): Unit
 
     companion object {
 
