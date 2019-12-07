@@ -18,11 +18,15 @@ package com.locii.docuscanlib
 // different implementations so we list them here to disambiguate.
 
 import android.Manifest
+import android.content.Intent
+import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+import android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
 import android.os.HandlerThread
+import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
@@ -33,11 +37,18 @@ import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.OnImageCapturedListener
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import androidx.lifecycle.LifecycleOwner
 import org.opencv.android.Utils
+import org.opencv.core.CvType.CV_8UC4
 import org.opencv.core.Mat
 import org.opencv.imgcodecs.Imgcodecs.imwrite
 import java.io.File
+import java.io.FileDescriptor.out
+import java.io.FileOutputStream
+import java.io.IOException
+import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executors
 
@@ -177,18 +188,77 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
             val nativeDocScanner = object : DocuScan() {
                 override fun onResultMat(matAddrOut: Long) {
-                    textureView.bitmap?.let {
-                        val bmp =
-                            Bitmap.createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
-                        Utils.matToBitmap(result, bmp)
-                        bmp.recycle()
-                    }
-                    val path =
-                        filesDir.toString() + File.separator + Date().toString() + " result.png"
-                    imwrite(path, result)
-                    result.release()
 
-                    CameraX.unbindAll()
+//                    textureView.bitmap?.let {
+//                        val bmp =
+//                            Bitmap.createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
+//                        Utils.matToBitmap(result, bmp)
+//                        bmp.recycle()
+//                    }
+
+                    Log.d("LOCII", "result mat address: ${result.nativeObjAddr}")
+
+                    val temp = Mat(matAddrOut)
+                    Log.d("LOCII", "temp mat address: ${temp.nativeObjAddr}")
+
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
+                    /*val imageFile =
+                        File(File(filesDir, "internal"), dateFormat.format(Date()) + "-scan.jpg")
+
+                    val imageUri = FileProvider.getUriForFile(
+                        this@CameraPreviewActivity,
+                        this@CameraPreviewActivity.applicationContext
+                            .packageName + ".provider", imageFile
+                    )
+
+                    grantUriPermission(
+                        this@CameraPreviewActivity.applicationContext
+                            .packageName,
+                        imageUri,
+                        FLAG_GRANT_READ_URI_PERMISSION and FLAG_GRANT_WRITE_URI_PERMISSION
+                    )*/
+                    temp.convertTo(temp, CV_8UC4)
+
+                    val path =
+//                        imageFile.absolutePath
+                        filesDir.toString() + File.separator + dateFormat.format(Date()) + "-result.png"
+
+                    // this writes successfully to file but require opencv to read it
+//                    val success = imwrite(path, temp)
+
+                    // another approch: write hte bitmap to file - read it afterwords
+                    var success = false
+                    val bmp =
+                        Bitmap.createBitmap(temp.cols(), temp.rows(), Bitmap.Config.ARGB_8888)
+                    Utils.matToBitmap(temp, bmp)
+                    try {
+                        val out = FileOutputStream(path)
+                        bmp.compress(
+                            Bitmap.CompressFormat.PNG,
+                            100,
+                            out
+                        )
+                        success=true
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    }
+                    bmp.recycle()
+
+                    result.release()
+                    temp.release()
+
+//                    val success = imwrite(imageUri.toFile().absolutePath, temp)
+                    if (success) {
+
+
+
+                        val data = Intent(/*Intent.ACTION_VIEW, imageUri).addFlags(
+                            FLAG_GRANT_READ_URI_PERMISSION*/
+                        ).putExtra("path", path)
+
+                        setResult(RESULT_OK, data)
+                    }
+//                    CameraX.unbindAll()
                     finish()
                 }
 
@@ -233,6 +303,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 //                Utils.matToBitmap(mat, bitmap)
 //                runOnUiThread { ivBitmap.setImageBitmap(bitmap) }
 
+                Log.d("LOCII", "mat address: ${result.nativeObjAddr}")
                 nativeDocScanner.scanDocument(mat.nativeObjAddr, result.nativeObjAddr)
             }
         })

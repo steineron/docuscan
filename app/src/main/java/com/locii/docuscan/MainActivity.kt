@@ -1,6 +1,8 @@
 package com.locii.docuscan
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import com.locii.docuscanlib.CameraPreviewActivity
@@ -13,10 +15,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         start_capturing.setOnClickListener {
-            Intent(this, CameraPreviewActivity::class.java).also {
+            val intent = Intent(this@MainActivity, CameraPreviewActivity::class.java)
+            startActivityForResult(intent, 126)
 
-                startActivityForResult(it, 123)
-            }
         }
 
     }
@@ -24,8 +25,19 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        data?.data?.let {
-            captured_document.setImageURI(it)
+        data?.getStringExtra("path")?.let {
+
+            var bitmap = BitmapFactory.decodeFile(it)
+            captured_document.post {
+
+                bitmap = Bitmap.createScaledBitmap(
+                    bitmap,
+                    captured_document.width,
+                    captured_document.height,
+                    true
+                )
+                captured_document.setImageBitmap(bitmap)
+            }
         }
     }
 

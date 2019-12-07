@@ -37,7 +37,12 @@ JNIEXPORT jlong JNICALL
 Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addrSrcMat, jlong addrTrgtMat) {
     Mat &src = *(Mat *) addrSrcMat;
     Mat &trgt = *(Mat *) addrSrcMat;
+    ostringstream msg;
+    msg<<"Target mat address: "<< addrTrgtMat;
     Mat *processed = processImage(src, trgt);
+    msg<<". Processed mat address: "<< (long)processed;
+
+    logOStream(msg);
     if (processed != NULL) {
 
         jclass pJclass = (env)->GetObjectClass(thiz);
@@ -287,7 +292,7 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     msg << "Distance: " << distance;
     logOStream(msg);
 
-    if (distance > 100.0) {
+    if (distance > 10000.0) {
         return NULL;
     }
 
