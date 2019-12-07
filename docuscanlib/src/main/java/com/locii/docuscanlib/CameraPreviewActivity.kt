@@ -23,7 +23,6 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
 import android.os.HandlerThread
-import android.util.Rational
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
@@ -37,6 +36,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import org.opencv.android.Utils
 import org.opencv.core.Mat
+import org.opencv.imgcodecs.Imgcodecs.imwrite
+import java.io.File
+import java.util.*
 import java.util.concurrent.Executors
 
 
@@ -102,7 +104,11 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         // If Android Studio complains about "this" being not a LifecycleOwner
         // try rebuilding the project or updating the appcompat dependency to
         // version 1.1.0 or higher.
-        CameraX.bindToLifecycle(this, createPreview(), createImageAnalysis() /*, createImageCapture()*/)
+        CameraX.bindToLifecycle(
+            this,
+            createPreview(),
+            createImageAnalysis() /*, createImageCapture()*/
+        )
     }
 
     /**
@@ -169,20 +175,28 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         imageAnalysis.setAnalyzer(analysisExecutor, object : ImageAnalysis.Analyzer {
 
 
-            val nativeDocScanner = object: DocuScan(){
+            val nativeDocScanner = object : DocuScan() {
                 override fun onResultMat(matAddrOut: Long) {
-                    val mat = Mat(matAddrOut)
-                    val bmp = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888)
-                    Utils.matToBitmap(mat, bmp)
+                    textureView.bitmap?.let {
+                        val bmp =
+                            Bitmap.createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
+                        Utils.matToBitmap(result, bmp)
+                        bmp.recycle()
+                    }
+                    val path =
+                        filesDir.toString() + File.separator + Date().toString() + " result.png"
+                    imwrite(path, result)
+                    result.release()
 
-                    bmp.recycle()
-                    mat.release()
-
-//                    CameraX.unbindAll()
+                    CameraX.unbindAll()
                     finish()
                 }
 
             }
+
+            val result = Mat()
+
+
             /**
              * Analyzes an image to produce a result.
              *
@@ -213,12 +227,13 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             override fun analyze(image: ImageProxy?, rotationDegrees: Int) {
                 val bitmap = textureView.bitmap ?: return
                 val mat = Mat()
+
                 Utils.bitmapToMat(bitmap, mat)
 //                Imgproc.cvtColor(mat, mat, currentImageType)
 //                Utils.matToBitmap(mat, bitmap)
 //                runOnUiThread { ivBitmap.setImageBitmap(bitmap) }
 
-                nativeDocScanner.scanDocument(mat.nativeObjAddr)
+                nativeDocScanner.scanDocument(mat.nativeObjAddr, result.nativeObjAddr)
             }
         })
         return imageAnalysis

@@ -14,10 +14,11 @@ abstract class DocuScan{
      * return an address of a cropped, transformed document
      *
      * @param matAddrIn the native address of the Mat to process
+     * @param resultAddrOut the native address of the result Mat (where the transformed image should be)
      * @return the address of the cropped Mat of the result. or -1 if did not meet the requirements
      *
      */
-    external fun scanDocument(matAddrIn: Long): Long
+    external fun scanDocument(matAddrIn: Long, resultAddrOut: Long): Long
 
     abstract fun onResultMat(matAddrOut:Long): Unit
 

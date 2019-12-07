@@ -14,7 +14,11 @@
 using namespace std;
 using namespace cv;
 
-static Mat *processImage(Mat &srcImage);
+static Mat *processImage(Mat &srcImage, Mat &mat);
+
+static void logMeanAndStd(Mat &mean, Mat &stdDev);
+
+static void logOStream(ostringstream &ios);
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
@@ -26,13 +30,14 @@ Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
 
 extern "C" {
 JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addsSrcMAt);
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addrSrcMat, jlong addrTrgtMat);
 
 
 JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addsSrcMat) {
-    Mat &src = *(Mat *) addsSrcMat;
-    Mat *processed = processImage(src);
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addrSrcMat, jlong addrTrgtMat) {
+    Mat &src = *(Mat *) addrSrcMat;
+    Mat &trgt = *(Mat *) addrSrcMat;
+    Mat *processed = processImage(src, trgt);
     if (processed != NULL) {
 
         jclass pJclass = (env)->GetObjectClass(thiz);
@@ -74,16 +79,40 @@ static Point2f closestPoint(Point &p, Point2f points[], int nPoints) {
     return result;
 }
 
-#define APPNAME "MyApp"
+#define APPNAME "LOCII_NATIVE"
 
-static void log(const char *msg) {
-    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "%s",  msg);
+static void logcat(const char *msg) {
+    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "%s", msg);
 }
 
-const int w = 500;
 
-static Mat *processImage(Mat &srcImage) {
+static void logOStream(ostringstream &ios) {
+    logcat(ios.str().data());
+    ios.str("");
+    ios.clear();
+}
+
+static void logMeanAndStd(Mat &mean, Mat &stdDev) {
+    ostringstream msg;
+    msg << "Sharpness: " << mean << " " << stdDev;
+    logOStream(msg);
+
+
+    msg << "Mean: " << mean.at<int>(0, 0) << ", " << mean.at<int>(0, 1) << ", "
+        << mean.at<int>(0, 2) << ", " << mean.at<int>(0, 3);
+    logOStream(msg);
+
+
+    msg << "Std: " << stdDev.at<int>(0, 0) << ", " << stdDev.at<int>(0, 1) << ", "
+        << stdDev.at<int>(0, 2) << ", " << stdDev.at<int>(0, 3);
+    logOStream(msg);
+
+}
+
+static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     Mat image, gray, blurImage, edge1;
+    ostringstream msg;
+
 
     // create a BW image:
     cvtColor(srcImage, gray, COLOR_BGR2GRAY);
@@ -95,12 +124,9 @@ static Mat *processImage(Mat &srcImage) {
     Laplacian(gray, lap, CV_64F);
     meanStdDev(lap, mean, stdDev);
 
-    std::ostringstream msg;
-    msg << "Sharpness:\n " << mean << " " << stdDev << endl;
-    log(msg.str().data());
-    msg << mean.at<int>(0,0)<<", "<<mean.at<int>(0,1)<<", "<<mean.at<int>(0,2)<<", "<<mean.at<int>(0,3);
-    log(msg.str().data());
-//
+    logMeanAndStd(mean, stdDev);
+
+    //
 //    if (mean > 15) {
 //        return NULL;
 //    }
@@ -172,6 +198,7 @@ static Mat *processImage(Mat &srcImage) {
     vector<Point> approxPoly;
     for (int i = 0; i < contours.size(); i++) {
         int current = contourArea(contours[i], false);
+
         if (current > max) {
             // check the shape of it:
             vector<Point> approx;
@@ -189,7 +216,10 @@ static Mat *processImage(Mat &srcImage) {
         }
     }
 
-    if (approxPoly.size() != 4) {
+    msg << "Approx Poly Size " << approxPoly.size() << ", area: " << max << ", Image size:" << srcImage.cols * srcImage.rows;
+    logOStream(msg);
+
+    if (approxPoly.size() != 4 || max < 0.6*0.6 * srcImage.cols * srcImage.rows) {
         return NULL;
     }
 
@@ -254,6 +284,9 @@ static Mat *processImage(Mat &srcImage) {
                     pow(boundingRectPoints[j].y - polyPoints[j].y, 2);
     }
 
+    msg << "Distance: " << distance;
+    logOStream(msg);
+
     if (distance > 100.0) {
         return NULL;
     }
@@ -307,7 +340,9 @@ static Mat *processImage(Mat &srcImage) {
 
 //    namedWindow("transformed", 1);
 //    imshow("transformed", transformed);
-    return &transformed;
+
+    transformed.copyTo(trgtImage);
+    return &trgtImage;
 
 
 }
