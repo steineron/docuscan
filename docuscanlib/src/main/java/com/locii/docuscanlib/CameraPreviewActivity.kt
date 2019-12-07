@@ -102,7 +102,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         // If Android Studio complains about "this" being not a LifecycleOwner
         // try rebuilding the project or updating the appcompat dependency to
         // version 1.1.0 or higher.
-        CameraX.bindToLifecycle(this, createPreview(), createImageAnalysis(), createImageCapture())
+        CameraX.bindToLifecycle(this, createPreview(), createImageAnalysis() /*, createImageCapture()*/)
     }
 
     /**
@@ -178,7 +178,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     bmp.recycle()
                     mat.release()
 
-                    CameraX.unbindAll()
+//                    CameraX.unbindAll()
                     finish()
                 }
 

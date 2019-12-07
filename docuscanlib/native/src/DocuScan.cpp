@@ -3,6 +3,7 @@
 //
 
 #include <jni.h>
+#include <android/log.h>
 #include <string>
 #include <iostream>
 #include "opencv2/core/utility.hpp"
@@ -73,6 +74,11 @@ static Point2f closestPoint(Point &p, Point2f points[], int nPoints) {
     return result;
 }
 
+#define APPNAME "MyApp"
+
+static void log(const char *msg) {
+    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "%s",  msg);
+}
 
 const int w = 500;
 
@@ -89,7 +95,11 @@ static Mat *processImage(Mat &srcImage) {
     Laplacian(gray, lap, CV_64F);
     meanStdDev(lap, mean, stdDev);
 
-    cout << "Sharpness:\n " << mean << " " << stdDev << endl;
+    std::ostringstream msg;
+    msg << "Sharpness:\n " << mean << " " << stdDev << endl;
+    log(msg.str().data());
+    msg << mean.at<int>(0,0)<<", "<<mean.at<int>(0,1)<<", "<<mean.at<int>(0,2)<<", "<<mean.at<int>(0,3);
+    log(msg.str().data());
 //
 //    if (mean > 15) {
 //        return NULL;
@@ -112,6 +122,9 @@ static Mat *processImage(Mat &srcImage) {
 //    imshow("temp", binary);
 //    waitKey(0);
 
+    gray.release();
+    blurImage.release();
+
     if (binary.type() != CV_8UC1) {
         binary.convertTo(binary, CV_8UC1);
 //        imshow("temp", binary);
@@ -129,6 +142,7 @@ static Mat *processImage(Mat &srcImage) {
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
     Canny(binary, edge1, 1, 3, 3);
 
+    binary.release();
 //    imshow("temp", edge1);
 //    waitKey(0);
 
@@ -139,6 +153,10 @@ static Mat *processImage(Mat &srcImage) {
 
     vector<vector<Point> > contours0;
     findContours(edge1, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+
+
+    edge1.release();
+
     contours.resize(contours0.size());
     for (size_t k = 0; k < contours0.size(); k++)
         approxPolyDP(Mat(contours0[k]), contours[k], 3, true);
@@ -169,6 +187,10 @@ static Mat *processImage(Mat &srcImage) {
                 approxPoly = approx; // keep record of hte approximated polygon
             }
         }
+    }
+
+    if (approxPoly.size() != 4) {
+        return NULL;
     }
 
 //    drawContours(contouredImage, contours, maxArea, Scalar(128, 255, 255),
@@ -232,7 +254,7 @@ static Mat *processImage(Mat &srcImage) {
                     pow(boundingRectPoints[j].y - polyPoints[j].y, 2);
     }
 
-    if (distance > 200.0) {
+    if (distance > 100.0) {
         return NULL;
     }
 
