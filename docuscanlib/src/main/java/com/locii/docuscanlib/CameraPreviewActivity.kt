@@ -184,43 +184,23 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         val imageAnalysis = ImageAnalysis(imageAnalysisConfig)
         imageAnalysis.setAnalyzer(analysisExecutor, object : ImageAnalysis.Analyzer {
 
+            val paths = mutableListOf<String>()
 
             val nativeDocScanner = object : DocuScan() {
-                override fun onResultMat(matAddrOut: Long) {
-                    val temp = Mat(matAddrOut)
-
-                    val dateFormat = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
-                    temp.convertTo(temp, CV_8UC4)
-
-                    val path =
-                        filesDir.toString() + File.separator + dateFormat.format(Date()) + "-result.png"
-
-                    //  write the bitmap to file - read it afterwords
-                    var success = false
-                    val bmp =
-                        Bitmap.createBitmap(temp.cols(), temp.rows(), Bitmap.Config.ARGB_8888)
-                    Utils.matToBitmap(temp, bmp)
-                    try {
-                        val out = FileOutputStream(path)
-                        bmp.compress(
-                            Bitmap.CompressFormat.PNG,
-                            100,
-                            out
-                        )
-                        success = true
-                    } catch (e: IOException) {
-                        e.printStackTrace()
+                override fun onIntermitentMat(matAddrOut: Long) {
+                    val (path, success) = saveAsBitmap(matAddrOut)
+                    if(success){
+                        paths.add(path)
                     }
-                    bmp.recycle()
+                }
 
+                override fun onResultMat(matAddrOut: Long) {
+                    val (path, success) = saveAsBitmap(matAddrOut)
                     result.release()
-                    temp.release()
-
                     if (success) {
 
-
-                        val data = Intent().putExtra("path", path)
-
+                        paths.add(path)
+                        val data = Intent().putExtra("paths", paths.toTypedArray())
                         setResult(RESULT_OK, data)
                     }
 //                    CameraX.unbindAll()
@@ -273,6 +253,36 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             }
         })
         return imageAnalysis
+    }
+
+    private fun saveAsBitmap(matAddrOut: Long): Pair<String, Boolean> {
+        val temp = Mat(matAddrOut)
+
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
+        temp.convertTo(temp, CV_8UC4)
+
+        val path =
+            filesDir.toString() + File.separator + dateFormat.format(Date()) + "-result.png"
+
+        //  write the bitmap to file - read it afterwords
+        var success = false
+        val bmp =
+            Bitmap.createBitmap(temp.cols(), temp.rows(), Bitmap.Config.ARGB_8888)
+        Utils.matToBitmap(temp, bmp)
+        try {
+            val out = FileOutputStream(path)
+            bmp.compress(
+                Bitmap.CompressFormat.PNG,
+                100,
+                out
+            )
+            success = true
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+        bmp.recycle()
+        temp.release()
+        return Pair(path, success)
     }
 
     private fun createImageCapture(): ImageCapture? {

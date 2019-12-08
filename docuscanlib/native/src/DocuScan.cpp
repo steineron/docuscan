@@ -14,7 +14,7 @@
 using namespace std;
 using namespace cv;
 
-static Mat *processImage(Mat &srcImage, Mat &mat);
+static Mat *processImage(Mat &srcImage, Mat &targetImage, Mat &contouredImage1, Mat &contouredImage2);
 
 static void logMeanAndStd(Mat &mean, Mat &stdDev);
 
@@ -30,32 +30,36 @@ Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
 
 extern "C" {
 JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addrSrcMat, jlong addrTrgtMat);
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addrSrcMat,
+                                                 jlong addrTrgtMat);
 
 
 JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addrSrcMat, jlong addrTrgtMat) {
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addrSrcMat,
+                                                 jlong addrTrgtMat) {
     Mat &src = *(Mat *) addrSrcMat;
     Mat &trgt = *(Mat *) addrSrcMat;
-    ostringstream msg;
-    msg<<"Target mat address: "<< addrTrgtMat;
-    Mat *processed = processImage(src, trgt);
-    msg<<". Processed mat address: "<< (long)processed;
 
-    logOStream(msg);
+    Mat contouredImage1 = Mat::zeros(500,500, CV_8UC3);
+    src.copyTo(contouredImage1);
+    Mat contouredImage2 = src.clone();
+    Mat *processed = processImage(src, trgt, contouredImage1, contouredImage2);
+
     if (processed != NULL) {
 
-        jclass pJclass = (env)->GetObjectClass(thiz);
+    jclass pJclass = (env)->GetObjectClass(thiz);
 
-        jmethodID midCallback = (env)->GetMethodID(pJclass, "onResultMat", "(J)V");
+        jmethodID midCallback = (env)->GetMethodID(pJclass, "onIntermitentMat", "(J)V");
+        (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage1);
+        (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage2);
 
-        (env)->CallVoidMethod(thiz, midCallback, (jlong) processed);
+        jmethodID mResultCallback = (env)->GetMethodID(pJclass, "onResultMat", "(J)V");
+
+        (env)->CallVoidMethod(thiz, mResultCallback, (jlong) processed);
 
         return 0;
     }
     return -1;
-
-    // perhaps better call env->OnResultMat(...));
 }
 
 }
@@ -114,7 +118,7 @@ static void logMeanAndStd(Mat &mean, Mat &stdDev) {
 
 }
 
-static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
+static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2) {
     Mat image, gray, blurImage, edge1;
     ostringstream msg;
 
@@ -133,7 +137,7 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     logMeanAndStd(mean, stdDev);
 
     // require decent degree of sharpness
-    if (stdDev.at<double>(0, 0) < 10.0) {
+    if (stdDev.at<double>(0, 0) < 7.0) {
         return NULL;
     }
 
@@ -142,9 +146,6 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     blur(gray, blurImage, Size(3, 3));
     gray.release();
 
-//    namedWindow("temp", 1);
-//    imshow("temp", blurImage);
-//    waitKey(0);
 
 
     // convert to binary image
@@ -153,17 +154,13 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
 
     threshold(blurImage, binary, 25, 255, THRESH_BINARY_INV + THRESH_OTSU);
     blurImage.release();
-//
-//    imshow("temp", binary);
-//    waitKey(0);
 
 
     if (binary.type() != CV_8UC1) {
         binary.convertTo(binary, CV_8UC1);
-//        imshow("temp", binary);
-//        waitKey(0);
-
     }
+
+
     // dilate, erode, dilate to further remove noise and small objects
     int niters = 3; // in 3 iterations
 
@@ -174,12 +171,9 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     // Run the edge detector on grayscale
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
     Canny(binary, edge1, 1, 3, 3);
-
     binary.release();
-//    imshow("temp", edge1);
-//    waitKey(0);
 
-
+    // find contours in hte canny image (edged)
     int levels = 3;
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
@@ -198,8 +192,7 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     // for extracting squares
 
     // or do this: find the contour with largest area - assume it is the document
-//    Mat contouredImage = Mat::zeros(w, w, CV_8UC3);
-//    srcImage.copyTo(contouredImage);
+
     int _levels = levels - 3;
     int maxArea = 0, max = 0;
     vector<Point> approxPoly;
@@ -223,21 +216,19 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
         }
     }
 
-    msg << "Approx Poly Size " << approxPoly.size() << ", area: " << max << ", Image size:" << srcImage.cols * srcImage.rows;
+    msg << "Approx Poly Size " << approxPoly.size() << ", area: " << max << ", Image size:"
+        << srcImage.cols * srcImage.rows;
     logOStream(msg);
 
-    if (approxPoly.size() != 4 || max < 0.6*0.6 * srcImage.cols * srcImage.rows) {
+    if (approxPoly.size() != 4 || max < 0.6 * 0.6 * srcImage.cols * srcImage.rows) {
         return NULL;
     }
 
-//    drawContours(contouredImage, contours, maxArea, Scalar(128, 255, 255),
-//                 3, LINE_AA, hierarchy, std::abs(_levels));
+    drawContours(contouredImage1, contours, maxArea, Scalar(128, 255, 255),
+                 3, LINE_AA, hierarchy, std::abs(_levels));
 
 
-//    namedWindow("contours", 1);
-//    imshow("contours", contouredImage);
-//    waitKey(0);
-
+    // find the rotated rect of the contour (rotated = tilted/skwed)
     RotatedRect rect = minAreaRect(contours[maxArea]);
     Rect boundRect = boundingRect(contours[maxArea]);
 
@@ -253,18 +244,18 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     double textScale = 5;
     int textThinkness = 4;
 
-    /*for (int j = 0; j < 4; j++) {
-        line(contouredImage, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
-        putText(contouredImage, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale, blue,
+    for (int j = 0; j < 4; j++) {
+        line(contouredImage1, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
+        putText(contouredImage1, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale, blue,
                 textThinkness);
-        line(contouredImage, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
+        line(contouredImage1, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
+        putText(contouredImage1, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
                 textThinkness);
-    }*/
+    }
     // draw the bounding rect
-    /*rectangle(contouredImage, Point(boundRect.x, boundRect.y),
+    rectangle(contouredImage1, Point(boundRect.x, boundRect.y),
               Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), black, 3,
-              LINE_AA);*/
+              LINE_AA);
 
 
 //    imshow("contours", contouredImage);
@@ -281,11 +272,12 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
         boundingRectPoints.push_back(closestPoint(approxPoly[i], box, 4));
     }
 
+    // calcuate hte distance from the bounding rectangle to he polygon - smaller distance <-> less skwed image
     double distance = 0;
     for (int j = 0; j < 4; j++) {
-        /*putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+        putText(contouredImage1, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
                 black, textThinkness, LINE_8);
-        line(contouredImage, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);*/
+        line(contouredImage1, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
 
         distance += pow(boundingRectPoints[j].x - polyPoints[j].x, 2) +
                     pow(boundingRectPoints[j].y - polyPoints[j].y, 2);
@@ -297,9 +289,6 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     if (distance > 10000.0) {
         return NULL;
     }
-
-//    imshow("contours", contouredImage);
-//    waitKey(0);
 
     Mat transmtx = getPerspectiveTransform(polyPoints, boundingRectPoints);
     Mat transformed = Mat::zeros(srcImage.rows, srcImage.cols, CV_8UC3);
@@ -325,31 +314,25 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     }
 
 
-    /*contouredImage = image.clone();
 
     for (int j = 0; j < 4; j++) {
-        line(contouredImage, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale, red,
+        line(contouredImage2, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
+        putText(contouredImage2, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale, red,
                 textThinkness);
-        line(contouredImage, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3,
+        line(contouredImage2, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3,
              LINE_AA);
-        putText(contouredImage, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+        putText(contouredImage2, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
                 orange, textThinkness);
-        line(contouredImage, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
-    }*/
+        line(contouredImage2, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
+    }
 
-//    namedWindow("contours-transformed", 1);
-//    imshow("contours-transformed", contouredImage);
-//    waitKey(0);
 
+    // transform and crop
     transmtx = getPerspectiveTransform(polyPoints, boundingRectPoints);
     warpPerspective(transformed, transformed, transmtx, transformed.size());
 
-//    namedWindow("transformed", 1);
-//    imshow("transformed", transformed);
-
-    transformed.copyTo(trgtImage);
-    return &trgtImage;
+    transformed.copyTo(mat);
+    return &mat;
 
 
 }

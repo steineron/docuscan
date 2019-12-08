@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.ImageView
 import com.locii.docuscanlib.CameraPreviewActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -25,18 +26,22 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        data?.getStringExtra("path")?.let {
+        data?.getStringArrayExtra("paths")?.let { paths ->
 
-            var bitmap = BitmapFactory.decodeFile(it)
-            captured_document.post {
+            paths.forEachIndexed { index, path ->
 
-                bitmap = Bitmap.createScaledBitmap(
-                    bitmap,
-                    captured_document.width,
-                    captured_document.height,
-                    true
-                )
-                captured_document.setImageBitmap(bitmap)
+                var bitmap = BitmapFactory.decodeFile(path)
+                images_layout.getChildAt(index)?.let { imageview ->
+                imageview.post {
+                    bitmap = Bitmap.createScaledBitmap(
+                        bitmap,
+                        images_layout.height*bitmap.width/bitmap.height,
+                        images_layout.height,
+                        true
+                    )
+                    (imageview as ImageView).setImageBitmap(bitmap)
+                }
+            }
             }
         }
     }
