@@ -3,17 +3,25 @@ package com.locii.docuscan
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.appcompat.app.AppCompatActivity
+import android.graphics.Point
 import android.os.Bundle
+import android.view.Display
 import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import com.locii.docuscanlib.CameraPreviewActivity
 import kotlinx.android.synthetic.main.activity_main.*
+
 
 class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val display: Display = windowManager.defaultDisplay
+        val size = Point()
+        display.getSize(size)
+        val width: Int = size.x
+        val height: Int = size.y
 
         start_capturing.setOnClickListener {
             val intent = Intent(this@MainActivity, CameraPreviewActivity::class.java)

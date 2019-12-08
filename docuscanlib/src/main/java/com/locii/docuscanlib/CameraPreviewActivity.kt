@@ -19,17 +19,15 @@ package com.locii.docuscanlib
 
 import android.Manifest
 import android.content.Intent
-import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-import android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.os.Bundle
-import android.os.HandlerThread
 import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -37,15 +35,12 @@ import androidx.camera.core.*
 import androidx.camera.core.ImageCapture.OnImageCapturedListener
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
-import androidx.core.net.toFile
 import androidx.lifecycle.LifecycleOwner
 import org.opencv.android.Utils
 import org.opencv.core.CvType.CV_8UC4
 import org.opencv.core.Mat
-import org.opencv.imgcodecs.Imgcodecs.imwrite
+import org.opencv.core.Point
 import java.io.File
-import java.io.FileDescriptor.out
 import java.io.FileOutputStream
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -71,10 +66,28 @@ private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
 class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
+    // optional TL and BR that define the ROI (Region Of Interest) rect
+    // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
+    private var topLeft:Point?=null
+    private var bottomRight:Point?=null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.main_camera)
+        window.decorView.systemUiVisibility = (
+                // Set the content to appear under the system bars so that the
+                // content doesn't resize when the system bars hide and show.
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        // Hide the nav bar and status bar
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_FULLSCREEN)
+
+            //ge teh Top-Left, Bottom-Right points for the document (if specified)
+        intent.getIntArrayExtra("tlbr")?.apply {
+        }
         // Add this at the end of onCreate function
 
         textureView = findViewById(R.id.view_finder)
