@@ -103,13 +103,13 @@ static void logMeanAndStd(Mat &mean, Mat &stdDev) {
     logOStream(msg);
 
 
-    msg << "Mean: " << mean.at<int>(0, 0) << ", " << mean.at<int>(0, 1) << ", "
-        << mean.at<int>(0, 2) << ", " << mean.at<int>(0, 3);
+    msg << "Mean: " << mean.at<double>(0, 0) << ", " << mean.at<double>(0, 1) << ", "
+        << mean.at<double>(0, 2) << ", " << mean.at<double>(0, 3);
     logOStream(msg);
 
 
-    msg << "Std: " << stdDev.at<int>(0, 0) << ", " << stdDev.at<int>(0, 1) << ", "
-        << stdDev.at<int>(0, 2) << ", " << stdDev.at<int>(0, 3);
+    msg << "Std: " << stdDev.at<double>(0, 0) << ", " << stdDev.at<double>(0, 1) << ", "
+        << stdDev.at<double>(0, 2) << ", " << stdDev.at<double>(0, 3);
     logOStream(msg);
 
 }
@@ -132,10 +132,10 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
 
     logMeanAndStd(mean, stdDev);
 
-    //
-//    if (mean > 15) {
-//        return NULL;
-//    }
+    // require decent degree of sharpness
+    if (stdDev.at<double>(0, 0) < 10.0) {
+        return NULL;
+    }
 
 
     // blur it to educe noise
