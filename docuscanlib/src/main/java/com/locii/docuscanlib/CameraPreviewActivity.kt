@@ -68,13 +68,15 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
     // optional TL and BR that define the ROI (Region Of Interest) rect
     // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
-    private var topLeft:Point?=null
-    private var bottomRight:Point?=null
+    private var topLeft: Point? = null
+    private var bottomRight: Point? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.main_camera)
+
+        //make  it full screen
         window.decorView.systemUiVisibility = (
                 // Set the content to appear under the system bars so that the
                 // content doesn't resize when the system bars hide and show.
@@ -85,8 +87,26 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                         or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                         or View.SYSTEM_UI_FLAG_FULLSCREEN)
 
-            //ge teh Top-Left, Bottom-Right points for the document (if specified)
-        intent.getIntArrayExtra("tlbr")?.apply {
+
+        //get the Top-Left, Bottom-Right points for the document (if specified)
+        intent.getIntegerArrayListExtra("tlbr")?.let {
+
+            if(it.size ==4) {
+                topLeft = Point(it[0].toDouble(), it[1].toDouble())
+                bottomRight = Point(it[2].toDouble(), it[3].toDouble())
+                // add the guide view
+                GuideView(this@CameraPreviewActivity).also { guide ->
+                    guide.topLeft = android.graphics.PointF(it[0].toFloat(), it[1].toFloat())
+                    guide.bottomRight = android.graphics.PointF(it[2].toFloat(), it[3].toFloat())
+
+
+                    val layoutParams = ViewGroup.LayoutParams(
+                       ViewGroup.LayoutParams.MATCH_PARENT,
+                       ViewGroup.LayoutParams.MATCH_PARENT)
+                    addContentView(guide, layoutParams)
+                }
+
+            }
         }
         // Add this at the end of onCreate function
 
@@ -202,12 +222,13 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             val nativeDocScanner = object : DocuScan() {
                 override fun onIntermitentMat(matAddrOut: Long) {
                     val (path, success) = saveAsBitmap(matAddrOut)
-                    if(success){
+                    if (success) {
                         paths.add(path)
                     }
                 }
 
                 override fun onResultMat(matAddrOut: Long) {
+
                     val (path, success) = saveAsBitmap(matAddrOut)
                     result.release()
                     if (success) {
@@ -216,7 +237,6 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                         val data = Intent().putExtra("paths", paths.toTypedArray())
                         setResult(RESULT_OK, data)
                     }
-//                    CameraX.unbindAll()
                     finish()
                 }
 

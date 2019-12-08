@@ -20,13 +20,36 @@ class MainActivity : AppCompatActivity() {
         val display: Display = windowManager.defaultDisplay
         val size = Point()
         display.getSize(size)
+        // invert those to create a landscape effect
         val width: Int = size.x
         val height: Int = size.y
 
-        start_capturing.setOnClickListener {
-            val intent = Intent(this@MainActivity, CameraPreviewActivity::class.java)
-            startActivityForResult(intent, 126)
+        // in the example - the DL is 85x55 mm so assume the width should capture 70% of the screen and the height should match:
 
+        val guidWidth = width * .70
+        val guideHeight = guidWidth * 85/55
+        val guideTL = Point((width * .15).toInt(), ((height - guideHeight) / 2).toInt())
+        val guideBR = Point((guideTL.x + guidWidth).toInt(), (guideTL.y + guideHeight).toInt())
+
+
+
+        start_capturing.setOnClickListener {
+            val tlbr = ArrayList<Int>()
+            with(tlbr) {
+                add(guideTL.x)
+                add(guideTL.y)
+                add(guideBR.x)
+                add(guideBR.y)
+            }
+            val intent = Intent(
+                this@MainActivity,
+                CameraPreviewActivity::class.java
+            ).putIntegerArrayListExtra(
+                "tlbr",
+                tlbr
+            )
+
+            startActivityForResult(intent, 126)
         }
 
     }
@@ -40,16 +63,16 @@ class MainActivity : AppCompatActivity() {
 
                 var bitmap = BitmapFactory.decodeFile(path)
                 images_layout.getChildAt(index)?.let { imageview ->
-                imageview.post {
-                    bitmap = Bitmap.createScaledBitmap(
-                        bitmap,
-                        images_layout.height*bitmap.width/bitmap.height,
-                        images_layout.height,
-                        true
-                    )
-                    (imageview as ImageView).setImageBitmap(bitmap)
+                    imageview.post {
+                        bitmap = Bitmap.createScaledBitmap(
+                            bitmap,
+                            images_layout.height * bitmap.width / bitmap.height,
+                            images_layout.height,
+                            true
+                        )
+                        (imageview as ImageView).setImageBitmap(bitmap)
+                    }
                 }
-            }
             }
         }
     }
