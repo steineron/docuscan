@@ -126,6 +126,7 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
     Mat lap;
     Mat mean(1, 4, CV_64F), stdDev(1, 4, CV_64F);
 
+//    compute sharpness as a standard deviation of the Laplacian
     Laplacian(gray, lap, CV_64F);
     meanStdDev(lap, mean, stdDev);
 
@@ -139,22 +140,23 @@ static Mat *processImage(Mat &srcImage, Mat &trgtImage) {
 
     // blur it to educe noise
     blur(gray, blurImage, Size(3, 3));
+    gray.release();
 
 //    namedWindow("temp", 1);
 //    imshow("temp", blurImage);
 //    waitKey(0);
 
 
-    Mat binary;
-    binary.create(gray.size(), CV_8UC1);
     // convert to binary image
+    Mat binary;
+    binary.create(blurImage.size(), CV_8UC1);
+
     threshold(blurImage, binary, 25, 255, THRESH_BINARY_INV + THRESH_OTSU);
+    blurImage.release();
 //
 //    imshow("temp", binary);
 //    waitKey(0);
 
-    gray.release();
-    blurImage.release();
 
     if (binary.type() != CV_8UC1) {
         binary.convertTo(binary, CV_8UC1);

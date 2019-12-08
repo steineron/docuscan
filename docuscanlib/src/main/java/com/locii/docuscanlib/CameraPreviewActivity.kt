@@ -176,57 +176,26 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
 
     private fun createImageAnalysis(): ImageAnalysis? { // Setup image analysis pipeline that computes average pixel luminance
-        val analyzerThread = HandlerThread("OpenCVAnalysis")
-        analyzerThread.start()
+
         val imageAnalysisConfig: ImageAnalysisConfig = ImageAnalysisConfig.Builder()
             .setImageReaderMode(ImageAnalysis.ImageReaderMode.ACQUIRE_LATEST_IMAGE)
             .setBackgroundExecutor(analysisExecutor)
-            .setImageQueueDepth(1).build()
+            /*.setImageQueueDepth(1)*/.build()
         val imageAnalysis = ImageAnalysis(imageAnalysisConfig)
         imageAnalysis.setAnalyzer(analysisExecutor, object : ImageAnalysis.Analyzer {
 
 
             val nativeDocScanner = object : DocuScan() {
                 override fun onResultMat(matAddrOut: Long) {
-
-//                    textureView.bitmap?.let {
-//                        val bmp =
-//                            Bitmap.createBitmap(it.width, it.height, Bitmap.Config.ARGB_8888)
-//                        Utils.matToBitmap(result, bmp)
-//                        bmp.recycle()
-//                    }
-
-                    Log.d("LOCII", "result mat address: ${result.nativeObjAddr}")
-
                     val temp = Mat(matAddrOut)
-                    Log.d("LOCII", "temp mat address: ${temp.nativeObjAddr}")
 
                     val dateFormat = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
-                    /*val imageFile =
-                        File(File(filesDir, "internal"), dateFormat.format(Date()) + "-scan.jpg")
-
-                    val imageUri = FileProvider.getUriForFile(
-                        this@CameraPreviewActivity,
-                        this@CameraPreviewActivity.applicationContext
-                            .packageName + ".provider", imageFile
-                    )
-
-                    grantUriPermission(
-                        this@CameraPreviewActivity.applicationContext
-                            .packageName,
-                        imageUri,
-                        FLAG_GRANT_READ_URI_PERMISSION and FLAG_GRANT_WRITE_URI_PERMISSION
-                    )*/
                     temp.convertTo(temp, CV_8UC4)
 
                     val path =
-//                        imageFile.absolutePath
                         filesDir.toString() + File.separator + dateFormat.format(Date()) + "-result.png"
 
-                    // this writes successfully to file but require opencv to read it
-//                    val success = imwrite(path, temp)
-
-                    // another approch: write hte bitmap to file - read it afterwords
+                    //  write the bitmap to file - read it afterwords
                     var success = false
                     val bmp =
                         Bitmap.createBitmap(temp.cols(), temp.rows(), Bitmap.Config.ARGB_8888)
@@ -238,7 +207,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                             100,
                             out
                         )
-                        success=true
+                        success = true
                     } catch (e: IOException) {
                         e.printStackTrace()
                     }
@@ -247,14 +216,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     result.release()
                     temp.release()
 
-//                    val success = imwrite(imageUri.toFile().absolutePath, temp)
                     if (success) {
 
 
-
-                        val data = Intent(/*Intent.ACTION_VIEW, imageUri).addFlags(
-                            FLAG_GRANT_READ_URI_PERMISSION*/
-                        ).putExtra("path", path)
+                        val data = Intent().putExtra("path", path)
 
                         setResult(RESULT_OK, data)
                     }
