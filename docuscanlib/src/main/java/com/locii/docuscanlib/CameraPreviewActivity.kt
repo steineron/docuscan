@@ -238,6 +238,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                             if (success) {
                                 paths.add(path)
                             }
+                            it.release()
                         }
 
                     }
@@ -259,6 +260,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 //                                result.release()
                                 finish()
                             }
+                            it.release()
                         }
                     }
                 }
