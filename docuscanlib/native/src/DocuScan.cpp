@@ -31,23 +31,24 @@ Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
 extern "C" {
 JNIEXPORT jlong JNICALL
 Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addrSrcMat,
-                                                 jlong addrTrgtMat);
+                                                 jlong addrTrgtMat,jlong temp1Addr,jlong temp2Addr);
 
 
 JNIEXPORT jlong JNICALL
 Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addrSrcMat,
-                                                 jlong addrTrgtMat) {
+                                                 jlong addrTrgtMat,jlong temp1Addr,jlong temp2Addr) {
     Mat &src = *(Mat *) addrSrcMat;
     Mat &trgt = *(Mat *) addrSrcMat;
 
-    Mat contouredImage1 = Mat::zeros(500,500, CV_8UC3);
-    src.copyTo(contouredImage1);
-    Mat contouredImage2 = src.clone();
+    Mat &contouredImage1 = *(Mat *) temp1Addr;
+    Mat &contouredImage2 = *(Mat *) temp2Addr;
+
+    jclass pJclass = (env)->GetObjectClass(thiz);
+
     Mat *processed = processImage(src, trgt, contouredImage1, contouredImage2);
 
     if (processed != NULL) {
 
-    jclass pJclass = (env)->GetObjectClass(thiz);
 
         jmethodID midCallback = (env)->GetMethodID(pJclass, "onIntermitentMat", "(J)V");
         (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage1);
@@ -119,7 +120,7 @@ static void logMeanAndStd(Mat &mean, Mat &stdDev) {
 }
 
 static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2) {
-    Mat image, gray, blurImage, edge1;
+    Mat gray, blurImage, edge1;
     ostringstream msg;
 
 
@@ -224,6 +225,8 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
         return NULL;
     }
 
+    /*Mat contouredImage1 = srcImage.clone();
+    Mat contouredImage2 = srcImage.clone();*/
     drawContours(contouredImage1, contours, maxArea, Scalar(128, 255, 255),
                  3, LINE_AA, hierarchy, std::abs(_levels));
 
@@ -332,6 +335,8 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     warpPerspective(transformed, transformed, transmtx, transformed.size());
 
     transformed.copyTo(mat);
+//    contouredImage1.copyTo(temp1);
+//    contouredImage2.copyTo(temp2);
     return &mat;
 
 

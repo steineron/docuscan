@@ -91,7 +91,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         //get the Top-Left, Bottom-Right points for the document (if specified)
         intent.getIntegerArrayListExtra("tlbr")?.let {
 
-            if(it.size ==4) {
+            if (it.size == 4) {
                 topLeft = Point(it[0].toDouble(), it[1].toDouble())
                 bottomRight = Point(it[2].toDouble(), it[3].toDouble())
                 // add the guide view
@@ -101,8 +101,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
 
                     val layoutParams = ViewGroup.LayoutParams(
-                       ViewGroup.LayoutParams.MATCH_PARENT,
-                       ViewGroup.LayoutParams.MATCH_PARENT)
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
                     addContentView(guide, layoutParams)
                 }
 
@@ -133,8 +134,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
     // Add this after onCreate
 
-    private lateinit var result: Mat
     private val analysisExecutor = Executors.newSingleThreadExecutor()
+    private val processingExecutor = Executors.newSingleThreadExecutor()
     private lateinit var textureView: TextureView
 
     private fun startCamera() {
@@ -217,32 +218,54 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         val imageAnalysis = ImageAnalysis(imageAnalysisConfig)
         imageAnalysis.setAnalyzer(analysisExecutor, object : ImageAnalysis.Analyzer {
 
+            var processFrames = true
             val paths = mutableListOf<String>()
 
             val nativeDocScanner = object : DocuScan() {
+
                 override fun onIntermitentMat(matAddrOut: Long) {
-                    val (path, success) = saveAsBitmap(matAddrOut)
-                    if (success) {
-                        paths.add(path)
+                    Log.d("LOCII", "onIntermitentMat: mat address: $matAddrOut")
+
+                    var temp = Mat(matAddrOut)
+                    temp.clone().also {
+                        processingExecutor.execute {
+                            Log.d(
+                                "LOCII",
+                                "onIntermitentMat: saving Mat at address: ${it.nativeObjAddr}"
+                            )
+
+                            val (path, success) = saveAsBitmap(it)
+                            if (success) {
+                                paths.add(path)
+                            }
+                        }
+
                     }
                 }
 
                 override fun onResultMat(matAddrOut: Long) {
+                    Log.d("LOCII", "onResultMat: mat address: $matAddrOut")
+                    processFrames = false
 
-                    val (path, success) = saveAsBitmap(matAddrOut)
-                    result.release()
-                    if (success) {
+                    var temp = Mat(matAddrOut)
+                    temp.clone().also {
+                        processingExecutor.execute {
+                            val (path, success) = saveAsBitmap(it)
+                            if (success) {
 
-                        paths.add(path)
-                        val data = Intent().putExtra("paths", paths.toTypedArray())
-                        setResult(RESULT_OK, data)
+                                paths.add(path)
+                                val data = Intent().putExtra("paths", paths.toTypedArray())
+                                setResult(RESULT_OK, data)
+//                                result.release()
+                                finish()
+                            }
+                        }
                     }
-                    finish()
                 }
 
             }
 
-            val result = Mat()
+            val result = Mat() // initialized AFTER the lib loaded
 
 
             /**
@@ -273,26 +296,32 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
              * degrees in the range `[0..360)`.
              */
             override fun analyze(image: ImageProxy?, rotationDegrees: Int) {
+                if (!processFrames) {
+                    return
+                }
                 val bitmap = textureView.bitmap ?: return
                 val mat = Mat()
-
+                val temp1 = Mat()
+                val temp2 = Mat()
                 Utils.bitmapToMat(bitmap, mat)
-//                Imgproc.cvtColor(mat, mat, currentImageType)
-//                Utils.matToBitmap(mat, bitmap)
-//                runOnUiThread { ivBitmap.setImageBitmap(bitmap) }
+                mat.copyTo(temp1)
+                mat.copyTo(temp2)
 
-                Log.d("LOCII", "mat address: ${result.nativeObjAddr}")
-                nativeDocScanner.scanDocument(mat.nativeObjAddr, result.nativeObjAddr)
+                nativeDocScanner.scanDocument(
+                    mat.nativeObjAddr,
+                    result.nativeObjAddr,
+                    temp1.nativeObjAddr,
+                    temp2.nativeObjAddr
+                )
             }
         })
         return imageAnalysis
     }
 
-    private fun saveAsBitmap(matAddrOut: Long): Pair<String, Boolean> {
-        val temp = Mat(matAddrOut)
+    private fun saveAsBitmap(mat: Mat): Pair<String, Boolean> {
 
-        val dateFormat = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")
-        temp.convertTo(temp, CV_8UC4)
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss.SSS")
+        mat.convertTo(mat, CV_8UC4)
 
         val path =
             filesDir.toString() + File.separator + dateFormat.format(Date()) + "-result.png"
@@ -300,8 +329,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         //  write the bitmap to file - read it afterwords
         var success = false
         val bmp =
-            Bitmap.createBitmap(temp.cols(), temp.rows(), Bitmap.Config.ARGB_8888)
-        Utils.matToBitmap(temp, bmp)
+            Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888)
+        Utils.matToBitmap(mat, bmp)
         try {
             val out = FileOutputStream(path)
             bmp.compress(
@@ -314,7 +343,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             e.printStackTrace()
         }
         bmp.recycle()
-        temp.release()
+        mat.release()
         return Pair(path, success)
     }
 
