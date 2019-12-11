@@ -20,6 +20,8 @@ static void logMeanAndStd(Mat &mean, Mat &stdDev);
 
 static void logOStream(ostringstream &ios);
 
+void dilateAndErode(const Mat &mat);
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
         JNIEnv *env,
@@ -163,11 +165,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
 
     // dilate, erode, dilate to further remove noise and small objects
-    int niters = 3; // in 3 iterations
-
-    dilate(binary, binary, Mat(), Point(-1, -1), niters);
-    erode(binary, binary, Mat(), Point(-1, -1), niters * 2);
-    dilate(binary, binary, Mat(), Point(-1, -1), niters);
+    dilateAndErode(binary);
 
     // Run the edge detector on grayscale
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
@@ -340,4 +338,12 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     return &mat;
 
 
+}
+
+void dilateAndErode(const Mat &mat) {
+    int niters = 3; // in 3 iterations
+
+    dilate(mat, mat, Mat(), Point(-1, -1), niters);
+    erode(mat, mat, Mat(), Point(-1, -1), niters * 2);
+    dilate(mat, mat, Mat(), Point(-1, -1), niters);
 }

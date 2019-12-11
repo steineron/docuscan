@@ -18,6 +18,7 @@ package com.locii.docuscanlib
 // different implementations so we list them here to disambiguate.
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -25,10 +26,7 @@ import android.graphics.Matrix
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
-import android.view.Surface
-import android.view.TextureView
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
@@ -66,6 +64,11 @@ private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 
 class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
+    companion object {
+        fun createGuidedBoxIntent(context: Context, ratio: Float): Intent =
+            Intent(context, CameraPreviewActivity::class.java).putExtra("ratio", ratio)
+    }
+
     // optional TL and BR that define the ROI (Region Of Interest) rect
     // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
     private var topLeft: Point? = null
@@ -89,15 +92,33 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
 
         //get the Top-Left, Bottom-Right points for the document (if specified)
-        intent.getIntegerArrayListExtra("tlbr")?.let {
+        intent.getFloatExtra("ratio", 0f).let {
 
-            if (it.size == 4) {
-                topLeft = Point(it[0].toDouble(), it[1].toDouble())
-                bottomRight = Point(it[2].toDouble(), it[3].toDouble())
+            // for example - the DL is 85:55 mm
+            if (it > 0) {
+                val display: Display = windowManager.defaultDisplay
+                val size = android.graphics.Point()
+                display.getSize(size)
+                // invert those to create a landscape effect
+                val width: Int = size.x
+                val height: Int = size.y
+
+
+                // assume the width should capture 70% of the screen and the height should match:
+                val guidWidth = width * .70
+                val guideHeight = guidWidth * it
+
+                topLeft = Point((width * .15), ((height - guideHeight) / 2))
+
+                bottomRight = Point((topLeft!!.x + guidWidth), (topLeft!!.y + guideHeight))
                 // add the guide view
                 GuideView(this@CameraPreviewActivity).also { guide ->
-                    guide.topLeft = android.graphics.PointF(it[0].toFloat(), it[1].toFloat())
-                    guide.bottomRight = android.graphics.PointF(it[2].toFloat(), it[3].toFloat())
+                    guide.topLeft =
+                        android.graphics.PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
+                    guide.bottomRight = android.graphics.PointF(
+                        bottomRight!!.x.toFloat(),
+                        bottomRight!!.y.toFloat()
+                    )
 
 
                     val layoutParams = ViewGroup.LayoutParams(
@@ -105,6 +126,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     addContentView(guide, layoutParams)
+
                 }
 
             }
@@ -251,6 +273,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     var temp = Mat(matAddrOut)
                     temp.clone().also {
                         processingExecutor.execute {
+                            Log.d(
+                                "LOCII",
+                                "onResultMat: saving Mat at address: ${it.nativeObjAddr}"
+                            )
                             val (path, success) = saveAsBitmap(it)
                             if (success) {
 
