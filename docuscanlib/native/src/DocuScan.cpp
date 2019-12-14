@@ -140,7 +140,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     logMeanAndStd(mean, stdDev);
 
     // require decent degree of sharpness
-    if (stdDev.at<double>(0, 0) < 7.0) {
+    if (stdDev.at<double>(0, 0) < 4.0) {
         return NULL;
     }
 
@@ -287,7 +287,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     msg << "Distance: " << distance;
     logOStream(msg);
 
-    if (distance > 10000.0) {
+    if (distance > 30000.0) {
         return NULL;
     }
 

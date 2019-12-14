@@ -69,6 +69,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             Intent(context, CameraPreviewActivity::class.java).putExtra("ratio", ratio)
     }
 
+    private var documentRatio: Float = 0f
+
     // optional TL and BR that define the ROI (Region Of Interest) rect
     // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
     private var topLeft: Point? = null
@@ -94,6 +96,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         //get the Top-Left, Bottom-Right points for the document (if specified)
         intent.getFloatExtra("ratio", 0f).let {
 
+            documentRatio = it
+
             // for example - the DL is 85:55 mm
             if (it > 0) {
                 val display: Display = windowManager.defaultDisplay
@@ -105,12 +109,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
 
                 // assume the width should capture 70% of the screen and the height should match:
-                val guidWidth = width * .70
-                val guideHeight = guidWidth * it
-
-                topLeft = Point((width * .15), ((height - guideHeight) / 2))
-
-                bottomRight = Point((topLeft!!.x + guidWidth), (topLeft!!.y + guideHeight))
+                calculateGuideTLBR(it, width, height)
                 // add the guide view
                 GuideView(this@CameraPreviewActivity).also { guide ->
                     guide.topLeft =
@@ -152,6 +151,17 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         textureView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             updateTransform()
         }
+    }
+
+    private fun calculateGuideTLBR(ratio: Float, width: Int, height: Int) {
+        val guidWidth = width * .70
+        val guideHeight = guidWidth * ratio
+
+        topLeft = Point((width * .15), ((height - guideHeight) / 2))
+
+        bottomRight = Point((topLeft!!.x + guidWidth), (topLeft!!.y + guideHeight))
+
+        Log.d("LOCII", "tl: $topLeft, br:$bottomRight")
     }
 
     // Add this after onCreate
@@ -439,6 +449,22 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
         // Finally, apply transformations to our TextureView
         textureView.setTransform(matrix)
+
+        // update hte TL BR coordinates
+        if (documentRatio > 0) {
+
+            calculateGuideTLBR(documentRatio, textureView.width, textureView.height)
+
+            when (textureView.display.rotation) {
+                Surface.ROTATION_180, Surface.ROTATION_270 -> {
+                    val tl = topLeft
+                    val br = bottomRight
+                    topLeft = br
+                    bottomRight = tl
+                }
+                else -> return
+            }
+        }
     }
 
 
