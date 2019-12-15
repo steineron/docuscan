@@ -323,7 +323,6 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
             }
 
-            val result = Mat() // initialized AFTER the lib loaded
 
 
             /**
@@ -365,9 +364,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 mat.copyTo(temp1)
                 mat.copyTo(temp2)
 
-                nativeDocScanner.scanDocument(
+                nativeDocScanner.scan(
                     mat.nativeObjAddr,
-                    result.nativeObjAddr,
                     temp1.nativeObjAddr,
                     temp2.nativeObjAddr
                 )

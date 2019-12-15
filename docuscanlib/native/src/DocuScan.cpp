@@ -10,11 +10,54 @@
 #include "opencv2/imgproc.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/highgui.hpp"
+#include "DocuScan.h"
 
 using namespace std;
 using namespace cv;
 
-static Mat *processImage(Mat &srcImage, Mat &targetImage, Mat &contouredImage1, Mat &contouredImage2);
+
+class DocuScan {
+
+private:
+    Point2f topLeft, bottomRight;
+    int distance = 30000;
+    int sharpness = 4;
+public:
+
+    DocuScan() : topLeft(Point2f()), bottomRight() {}
+
+    const Point2f &getTopLeft() const {
+        return topLeft;
+    }
+
+    const Point2f &getBottomRight() const {
+        return bottomRight;
+    }
+
+    int getDistance() const {
+        return distance;
+    }
+
+    int getSharpness() const {
+        return sharpness;
+    }
+
+    void setDistance(int d) {
+        distance = d;
+    }
+
+    void setSharpness(int s) {
+        sharpness = s;
+    }
+
+    void setGuide(Point2f &tl, Point2f &br) {
+        topLeft = Point2f(tl);
+        bottomRight = Point2f(br);
+    }
+};
+
+static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2,
+                         DocuScan &scanParams);
 
 static void logMeanAndStd(Mat &mean, Mat &stdDev);
 
@@ -22,32 +65,29 @@ static void logOStream(ostringstream &ios);
 
 void dilateAndErode(const Mat &mat);
 
-extern "C" JNIEXPORT jstring JNICALL
-Java_com_locii_docuscanlib_DocuScan_stringFromJNI(
-        JNIEnv *env,
-        jobject /* this */) {
-    std::string hello = "Hello from C++";
-    return env->NewStringUTF(hello.c_str());
-}
-
 extern "C" {
-JNIEXPORT jlong JNICALL
+/*JNIEXPORT jlong JNICALL
 Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addrSrcMat,
                                                  jlong addrTrgtMat,jlong temp1Addr,jlong temp2Addr);
 
+JNIEXPORT jlong JNICALL
+Java_com_locii_docuscanlib_DocuScan_createDocuScan(JNIEnv *, jobject);*/
+
 
 JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong addrSrcMat,
-                                                 jlong addrTrgtMat,jlong temp1Addr,jlong temp2Addr) {
+Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlong nativeObject,
+                                                 jlong addrSrcMat, jlong temp1Addr,
+                                                 jlong temp2Addr) {
     Mat &src = *(Mat *) addrSrcMat;
     Mat &trgt = *(Mat *) addrSrcMat;
+    DocuScan &params = *(DocuScan *) nativeObject;
 
     Mat &contouredImage1 = *(Mat *) temp1Addr;
     Mat &contouredImage2 = *(Mat *) temp2Addr;
 
     jclass pJclass = (env)->GetObjectClass(thiz);
 
-    Mat *processed = processImage(src, trgt, contouredImage1, contouredImage2);
+    Mat *processed = processImage(src, trgt, contouredImage1, contouredImage2, params);
 
     if (processed != NULL) {
 
@@ -64,6 +104,22 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlon
     }
     return -1;
 }
+
+
+JNIEXPORT jlong JNICALL
+Java_com_locii_docuscanlib_DocuScan_createDocuScan(JNIEnv *, jobject) {
+    DocuScan *d = new DocuScan();
+    return (long) d;
+
+}
+
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_releaseDocuScan(JNIEnv *, jobject, jlong nativeObject) {
+
+    delete (DocuScan*)nativeObject;
+}
+
 
 }
 
@@ -121,7 +177,8 @@ static void logMeanAndStd(Mat &mean, Mat &stdDev) {
 
 }
 
-static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2) {
+static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2,
+                         DocuScan &scanParams) {
     Mat gray, blurImage, edge1;
     ostringstream msg;
 
@@ -140,7 +197,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     logMeanAndStd(mean, stdDev);
 
     // require decent degree of sharpness
-    if (stdDev.at<double>(0, 0) < 4.0) {
+    if (stdDev.at<double>(0, 0) < (double) scanParams.getSharpness()) {
         return NULL;
     }
 
@@ -273,7 +330,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
         boundingRectPoints.push_back(closestPoint(approxPoly[i], box, 4));
     }
 
-    // calcuate hte distance from the bounding rectangle to he polygon - smaller distance <-> less skwed image
+    // calcuate the distance from the bounding rectangle to the polygon - smaller distance <-> less skwed image
     double distance = 0;
     for (int j = 0; j < 4; j++) {
         putText(contouredImage1, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
@@ -287,7 +344,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     msg << "Distance: " << distance;
     logOStream(msg);
 
-    if (distance > 30000.0) {
+    if (distance > (double) scanParams.getDistance()) {
         return NULL;
     }
 
@@ -313,7 +370,6 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
         polyPoints.push_back(closestPoint(p, box, 4));
 
     }
-
 
 
     for (int j = 0; j < 4; j++) {
