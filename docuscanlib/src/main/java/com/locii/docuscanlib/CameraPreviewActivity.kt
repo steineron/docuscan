@@ -23,6 +23,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.PointF
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
@@ -69,6 +70,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             Intent(context, CameraPreviewActivity::class.java).putExtra("ratio", ratio)
     }
 
+    private var guideView: GuideView? = null
     private var documentRatio: Float = 0f
 
     // optional TL and BR that define the ROI (Region Of Interest) rect
@@ -110,24 +112,31 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
                 // assume the width should capture 70% of the screen and the height should match:
                 calculateGuideTLBR(it, width, height)
+
                 // add the guide view
+                guideView?.let { guide ->
+                    (guide.parent as? ViewGroup)?.apply {
+                        removeView(guide)
+                    }
+                    guideView = null
+                }
+
                 GuideView(this@CameraPreviewActivity).also { guide ->
                     guide.topLeft =
-                        android.graphics.PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
-                    guide.bottomRight = android.graphics.PointF(
+                        PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
+                    guide.bottomRight = PointF(
                         bottomRight!!.x.toFloat(),
                         bottomRight!!.y.toFloat()
                     )
-
 
                     val layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                     addContentView(guide, layoutParams)
+                    guideView = guide
 
                 }
-
             }
         }
         // Add this at the end of onCreate function
@@ -150,6 +159,17 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         // Every time the provided texture view changes, recompute layout
         textureView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             updateTransform()
+        }
+    }
+
+    private fun updateGuideView() {
+        guideView?.apply {
+            topLeft =
+                PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
+            bottomRight = PointF(
+                bottomRight!!.x.toFloat(),
+                bottomRight!!.y.toFloat()
+            )
         }
     }
 
@@ -445,6 +465,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             Surface.ROTATION_270 -> 270
             else -> return
         }
+        Log.d("LOCII", "rotation: $rotationDegrees")
+
         matrix.postRotate(-rotationDegrees.toFloat(), centerX, centerY)
 
         // Finally, apply transformations to our TextureView
@@ -462,8 +484,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     topLeft = br
                     bottomRight = tl
                 }
-                else -> return
+                else -> {}
             }
+            updateGuideView()
         }
     }
 
