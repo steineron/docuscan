@@ -27,6 +27,22 @@ JNIEXPORT void
 JNICALL
 Java_com_locii_docuscanlib_DocuScan_releaseDocuScan(JNIEnv *, jobject, jlong nativeObject);
 
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setGuide(JNIEnv *, jobject, jlong nativeObject, jfloat tl_x,
+                                             jfloat tl_y, jfloat br_x, jfloat br_y);
+
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setSharpness(JNIEnv *, jobject, jlong nativeObject,
+                                                 jint sharpness);
+
+
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setDistance(JNIEnv *, jobject, jlong nativeObject,
+                                                jint distance);
+
 class DocuScan;
 
 }

@@ -325,6 +325,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
 
 
+
             /**
              * Analyzes an image to produce a result.
              *
@@ -364,6 +365,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 mat.copyTo(temp1)
                 mat.copyTo(temp2)
 
+                nativeDocScanner.distance=4
+                nativeDocScanner.sharpness=30000
+
                 nativeDocScanner.scan(
                     mat.nativeObjAddr,
                     temp1.nativeObjAddr,
@@ -371,6 +375,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 )
             }
         })
+
         return imageAnalysis
     }
 

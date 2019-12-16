@@ -25,10 +25,31 @@ abstract class DocuScan {
 
 
     // create a new native object
-     external fun createDocuScan(): Long
+     private external fun createDocuScan(): Long
 
     // release an object allocated with createDocuScan
-     external fun releaseDocuScan(addr: Long)
+     private external fun releaseDocuScan(addr: Long)
+
+    // set distance value
+    var distance:Int = 0
+        set(value) {
+            field=value
+            setDistance(nativeObject,value)
+        }
+
+    private external fun setDistance(addr: Long, distance:Int)
+
+
+    // set distance value
+    var sharpness:Int = 0
+        set(value) {
+            field=value
+            setSharpness(nativeObject,value)
+        }
+
+    private external fun setSharpness(addr: Long, sharpness:Int)
+
+
 
 
     fun scan(
