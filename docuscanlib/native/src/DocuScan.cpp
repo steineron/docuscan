@@ -21,7 +21,7 @@ class DocuScan {
 private:
     Point2f topLeft, bottomRight;
     int distance = 50000;
-    int sharpness = 2;
+    double sharpness = 2.0;
 public:
 
     DocuScan() : topLeft(Point2f()), bottomRight() {}
@@ -38,7 +38,7 @@ public:
         return distance;
     }
 
-    int getSharpness() const {
+    double getSharpness() const {
         return sharpness;
     }
 
@@ -47,7 +47,7 @@ public:
     }
 
     void setSharpness(int s) {
-        sharpness = s;
+        sharpness = static_cast<double>(s);
     }
 
     void setGuide(Point2f &tl, Point2f &br) {
@@ -218,7 +218,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     logMeanAndStd(mean, stdDev);
 
     // require decent degree of sharpness
-    if (stdDev.at<double>(0, 0) < (double) scanParams.getSharpness()) {
+    if (stdDev.at<double>(0, 0) > scanParams.getSharpness()) {
         return NULL;
     }
 
