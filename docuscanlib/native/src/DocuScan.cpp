@@ -309,8 +309,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
         return NULL;
     }
 
-    /*Mat contouredImage1 = srcImage.clone();
-    Mat contouredImage2 = srcImage.clone();*/
+
     drawContours(contouredImage1, contours, maxArea, Scalar(128, 255, 255),
                  3, LINE_AA, hierarchy, std::abs(_levels));
 
@@ -344,9 +343,6 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
               Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), black, 3,
               LINE_AA);
 
-
-//    imshow("contours", contouredImage);
-//    waitKey(0);
 
     // transform the skewed image
     std::vector<Point2f> polyPoints;
@@ -387,12 +383,23 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     boundingRectPoints.clear();
 
 
-    float h = rect.size.height;//MIN(rect.size.height,rect.size.width);
-    float w = rect.size.width;//MAX(rect.size.height,rect.size.width);
-    boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y));
-    boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y + h));
-    boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y));
-    boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y + h));
+    Point2f topLeft = scanParams.getTopLeft();
+    Point2f bottomRight = scanParams.getBottomRight();
+    if (topLeft.x <= 0.0 || topLeft.y <= 0.0 || bottomRight.x <= 0.0 || bottomRight.y <= 0.0) {
+        float h = rect.size.height;//MIN(rect.size.height,rect.size.width);
+        float w = rect.size.width;//MAX(rect.size.height,rect.size.width);
+        boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y));
+        boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y + h));
+        boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y));
+        boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y + h));
+    } else {
+        msg << "Guiding rect: " << topLeft << ":" << bottomRight;
+        logOStream(msg);
+        boundingRectPoints.push_back(Point2f(topLeft));
+        boundingRectPoints.push_back(Point2f(bottomRight.x, topLeft.y));
+        boundingRectPoints.push_back(Point2f(bottomRight));
+        boundingRectPoints.push_back(Point2f(topLeft.x, bottomRight.y));
+    }
 
     for (int i = 0; i < 4; ++i) {
         Point p = Point(boundingRectPoints[i].x, boundingRectPoints[i].y);
