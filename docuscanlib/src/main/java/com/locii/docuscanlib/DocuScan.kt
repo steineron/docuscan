@@ -1,5 +1,7 @@
 package com.locii.docuscanlib
 
+import android.graphics.RectF
+
 abstract class DocuScan {
 
     private val nativeObject = createDocuScan()
@@ -25,30 +27,42 @@ abstract class DocuScan {
 
 
     // create a new native object
-     private external fun createDocuScan(): Long
+    private external fun createDocuScan(): Long
 
     // release an object allocated with createDocuScan
-     private external fun releaseDocuScan(addr: Long)
+    private external fun releaseDocuScan(addr: Long)
 
     // set distance value
-    var distance:Int = 0
+    var distance: Int = 0
         set(value) {
-            field=value
-            setDistance(nativeObject,value)
+            field = value
+            setDistance(nativeObject, value)
         }
 
-    private external fun setDistance(addr: Long, distance:Int)
+    private external fun setDistance(addr: Long, distance: Int)
 
 
     // set distance value
-    var sharpness:Int = 0
+    var sharpness: Int = 0
         set(value) {
-            field=value
-            setSharpness(nativeObject,value)
+            field = value
+            setSharpness(nativeObject, value)
         }
 
-    private external fun setSharpness(addr: Long, sharpness:Int)
+    private external fun setSharpness(addr: Long, sharpness: Int)
 
+    var guidingRect: RectF? = null
+    set(value) {
+        field=value
+        setGuide(nativeObject,
+            value?.left ?: 0.0f,
+            value?.top ?: 0.0f,
+            value?.right ?: 0.0f,
+            value?.bottom ?: 0.0f
+            )
+    }
+
+    private external fun setGuide(addr: Long, tl_x: Float, tl_y: Float, br_x: Float, br_y: Float)
 
 
 
@@ -57,7 +71,7 @@ abstract class DocuScan {
         extraAddr1: Long,
         extraAddr2: Long
     ): Long {
-        return scanDocument(nativeObject,matAddrIn,extraAddr1,extraAddr2)
+        return scanDocument(nativeObject, matAddrIn, extraAddr1, extraAddr2)
     }
 
     fun release() {

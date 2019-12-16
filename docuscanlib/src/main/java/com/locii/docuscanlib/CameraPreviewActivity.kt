@@ -24,6 +24,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.PointF
+import android.graphics.RectF
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
@@ -324,8 +325,6 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             }
 
 
-
-
             /**
              * Analyzes an image to produce a result.
              *
@@ -365,8 +364,14 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 mat.copyTo(temp1)
                 mat.copyTo(temp2)
 
-                nativeDocScanner.distance=4
-                nativeDocScanner.sharpness=30000
+                nativeDocScanner.distance = 4
+                nativeDocScanner.sharpness = 30000
+                nativeDocScanner.guidingRect = RectF(
+                    topLeft?.x?.toFloat() ?: 0.0f,
+                    topLeft?.y?.toFloat() ?: 0.0f,
+                    bottomRight?.x?.toFloat() ?: 0.0f,
+                    bottomRight?.y?.toFloat() ?: 0.0f
+                )
 
                 nativeDocScanner.scan(
                     mat.nativeObjAddr,
@@ -487,7 +492,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     topLeft = br
                     bottomRight = tl
                 }
-                else -> {}
+                else -> {
+                }
             }
             updateGuideView()
         }
