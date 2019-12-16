@@ -20,8 +20,8 @@ class DocuScan {
 
 private:
     Point2f topLeft, bottomRight;
-    int distance = 30000;
-    int sharpness = 4;
+    int distance = 50000;
+    int sharpness = 2;
 public:
 
     DocuScan() : topLeft(Point2f()), bottomRight() {}
@@ -66,12 +66,6 @@ static void logOStream(ostringstream &ios);
 void dilateAndErode(const Mat &mat);
 
 extern "C" {
-/*JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *, jobject, jlong addrSrcMat,
-                                                 jlong addrTrgtMat,jlong temp1Addr,jlong temp2Addr);
-
-JNIEXPORT jlong JNICALL
-Java_com_locii_docuscanlib_DocuScan_createDocuScan(JNIEnv *, jobject);*/
 
 
 JNIEXPORT jlong JNICALL
@@ -108,9 +102,7 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlon
 
 JNIEXPORT jlong JNICALL
 Java_com_locii_docuscanlib_DocuScan_createDocuScan(JNIEnv *, jobject) {
-    DocuScan *d = new DocuScan();
-    return (long) d;
-
+    return (jlong) new DocuScan();
 }
 
 JNIEXPORT void
@@ -125,7 +117,7 @@ JNICALL
 Java_com_locii_docuscanlib_DocuScan_setDistance(JNIEnv *, jobject, jlong nativeObject,
                                                 jint distance) {
 
-    DocuScan sd = *(DocuScan *) nativeObject;
+    DocuScan &sd = *(DocuScan *) nativeObject;
     sd.setDistance(distance);
 }
 
@@ -134,7 +126,7 @@ JNICALL
 Java_com_locii_docuscanlib_DocuScan_setSharpness(JNIEnv *, jobject, jlong nativeObject,
                                                  jint sharpness) {
 
-    DocuScan sd = *(DocuScan *) nativeObject;
+    DocuScan &sd = *(DocuScan *) nativeObject;
     sd.setSharpness(sharpness);
 }
 
@@ -143,7 +135,7 @@ JNICALL
 Java_com_locii_docuscanlib_DocuScan_setGuide(JNIEnv *, jobject, jlong nativeObject, jfloat tl_x,
                                              jfloat tl_y, jfloat br_x, jfloat br_y) {
 
-    DocuScan sd = *(DocuScan *) nativeObject;
+    DocuScan &sd = *(DocuScan *) nativeObject;
     Point_<float> tl = Point2f(tl_x, tl_y);
     Point_<float> br = Point2f(br_x, br_y);
     sd.setGuide(tl, br);
@@ -313,10 +305,28 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     drawContours(contouredImage1, contours, maxArea, Scalar(128, 255, 255),
                  3, LINE_AA, hierarchy, std::abs(_levels));
 
+    // was a guide provided in the params?
+    Point2f topLeft = scanParams.getTopLeft();
+    Point2f bottomRight = scanParams.getBottomRight();
+
+    bool hasValidGuide =
+            topLeft.x <= 0.0 || topLeft.y <= 0.0 || bottomRight.x <= 0.0 || bottomRight.y <= 0.0;
+
+    msg << "Guiding rect: " << topLeft << ":" << bottomRight;
+    logOStream(msg);
 
     // find the rotated rect of the contour (rotated = tilted/skwed)
     RotatedRect rect = minAreaRect(contours[maxArea]);
-    Rect boundRect = boundingRect(contours[maxArea]);
+    Rect boundRect;
+    if (hasValidGuide) {
+
+        boundRect = Rect(static_cast<int>(topLeft.x),
+                         static_cast<int>(topLeft.y),
+                         static_cast<int>(bottomRight.x - topLeft.x),
+                         static_cast<int>(bottomRight.y - topLeft.y));
+    } else {
+        boundRect = boundingRect(contours[maxArea]);
+    }
 
     Point2f box[4];
     rect.points(box);
@@ -382,10 +392,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     polyPoints.clear();
     boundingRectPoints.clear();
 
-
-    Point2f topLeft = scanParams.getTopLeft();
-    Point2f bottomRight = scanParams.getBottomRight();
-    if (topLeft.x <= 0.0 || topLeft.y <= 0.0 || bottomRight.x <= 0.0 || bottomRight.y <= 0.0) {
+    if (hasValidGuide) {
         float h = rect.size.height;//MIN(rect.size.height,rect.size.width);
         float w = rect.size.width;//MAX(rect.size.height,rect.size.width);
         boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y));
@@ -393,8 +400,6 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
         boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y));
         boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y + h));
     } else {
-        msg << "Guiding rect: " << topLeft << ":" << bottomRight;
-        logOStream(msg);
         boundingRectPoints.push_back(Point2f(topLeft));
         boundingRectPoints.push_back(Point2f(bottomRight.x, topLeft.y));
         boundingRectPoints.push_back(Point2f(bottomRight));

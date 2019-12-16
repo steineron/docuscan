@@ -364,8 +364,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 mat.copyTo(temp1)
                 mat.copyTo(temp2)
 
-                nativeDocScanner.distance = 4
-                nativeDocScanner.sharpness = 30000
+                nativeDocScanner.distance = 30000
+                nativeDocScanner.sharpness = 4
                 nativeDocScanner.guidingRect = RectF(
                     topLeft?.x?.toFloat() ?: 0.0f,
                     topLeft?.y?.toFloat() ?: 0.0f,
