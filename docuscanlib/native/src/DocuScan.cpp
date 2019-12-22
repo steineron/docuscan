@@ -79,12 +79,12 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlon
     Mat &contouredImage1 = *(Mat *) temp1Addr;
     Mat &contouredImage2 = *(Mat *) temp2Addr;
 
-    jclass pJclass = (env)->GetObjectClass(thiz);
 
     Mat *processed = processImage(src, trgt, contouredImage1, contouredImage2, params);
 
     if (processed != NULL) {
 
+        jclass pJclass = (env)->GetObjectClass(thiz);
 
         jmethodID midCallback = (env)->GetMethodID(pJclass, "onIntermitentMat", "(J)V");
         (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage1);
@@ -219,6 +219,10 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
     // require decent degree of sharpness
     if (stdDev.at<double>(0, 0) > scanParams.getSharpness()) {
+        msg <<
+            "(Failed sharpness test: " << stdDev.at<double>(0, 0) << " > "
+            << scanParams.getSharpness() << ")";
+        logOStream(msg);
         return NULL;
     }
 
@@ -271,12 +275,12 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     // or do this: find the contour with largest area - assume it is the document
 
     int _levels = levels - 3;
-    int maxArea = 0, max = 0;
+    int maxAreaContour = 0, maxArea = 0;
     vector<Point> approxPoly;
     for (int i = 0; i < contours.size(); i++) {
         int current = contourArea(contours[i], false);
 
-        if (current > max) {
+        if (current > maxArea) {
             // check the shape of it:
             vector<Point> approx;
             approxPolyDP(contours[i], approx, arcLength(contours[i], true) * 0.02, true);
@@ -286,37 +290,62 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
             // and be convex.
             // Note: absolute value of an area is used because
             if (approx.size() == 4 && isContourConvex(approx)) {
-                max = current;
-                maxArea = i;
+                maxArea = current;
+                maxAreaContour = i;
                 approxPoly = approx; // keep record of hte approximated polygon
             }
         }
     }
 
-    msg << "Approx Poly Size " << approxPoly.size() << ", area: " << max << ", Image size:"
+    msg << "Approx Poly: Size " << approxPoly.size() << ", area: " << maxArea
+        << ", Image size:"
         << srcImage.cols * srcImage.rows;
     logOStream(msg);
-
-    if (approxPoly.size() != 4 || max < 0.6 * 0.6 * srcImage.cols * srcImage.rows) {
-        return NULL;
-    }
-
-
-    drawContours(contouredImage1, contours, maxArea, Scalar(128, 255, 255),
-                 3, LINE_AA, hierarchy, std::abs(_levels));
 
     // was a guide provided in the params?
     Point2f topLeft = scanParams.getTopLeft();
     Point2f bottomRight = scanParams.getBottomRight();
-
     bool hasValidGuide =
-            topLeft.x <= 0.0 || topLeft.y <= 0.0 || bottomRight.x <= 0.0 || bottomRight.y <= 0.0;
+            topLeft.x > 0.0 && topLeft.y > 0.0 && bottomRight.x > 0.0 && bottomRight.y > 0.0;
 
-    msg << "Guiding rect: " << topLeft << ":" << bottomRight;
+    float guideArea = Rect2f(topLeft, bottomRight).area();
+
+    float area = static_cast<float>(maxArea);
+
+    msg << "Guiding rect (valid: " << hasValidGuide << ") :" << topLeft << "," << bottomRight
+        << " Area: " << guideArea;
     logOStream(msg);
 
+    bool areasMatch = hasValidGuide && abs(guideArea - area) < 0.2f * area;
+    bool areaFill = !hasValidGuide && area > -0.6 * 0.6 * srcImage.rows * srcImage.cols &&
+                    area < -0.8 * 0.8 * srcImage.rows * srcImage.cols;
+    bool polyIsSquare = approxPoly.size() == 4;
+    msg <<
+        "Shape/ Area test: area: " << area
+        << ", polyIsSquare: " << polyIsSquare
+        << ", areasMatch: " << areasMatch
+        << ", areaFill: " << areaFill;
+
+    logOStream(msg);
+
+    if (!polyIsSquare ||
+        (!areasMatch && !areaFill)) {
+
+        msg << "(Failed shape/ area test)";
+        logOStream(msg);
+
+        return NULL;
+    }
+
+
+    drawContours(contouredImage1, contours, maxAreaContour, Scalar(128, 255, 255),
+                 3, LINE_AA, hierarchy, std::abs(_levels));
+
+
+
+
     // find the rotated rect of the contour (rotated = tilted/skwed)
-    RotatedRect rect = minAreaRect(contours[maxArea]);
+    RotatedRect rect = minAreaRect(contours[maxAreaContour]);
     Rect boundRect;
     if (hasValidGuide) {
 
@@ -325,11 +354,17 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
                          static_cast<int>(bottomRight.x - topLeft.x),
                          static_cast<int>(bottomRight.y - topLeft.y));
     } else {
-        boundRect = boundingRect(contours[maxArea]);
+        boundRect = boundingRect(contours[maxAreaContour]);
     }
 
     Point2f box[4];
-    rect.points(box);
+//    rect.points(box); // the points of the rotated rect
+
+    box[0] = Point2f(boundRect.x, boundRect.y);
+    box[1] = Point2f(boundRect.x + boundRect.width, boundRect.y);
+    box[2] = Point2f(boundRect.x + boundRect.width, boundRect.y + boundRect.height);
+    box[3] = Point2f(boundRect.x, boundRect.y + boundRect.height);
+
     Scalar blue = Scalar(255, 128, 0);
     Scalar red = Scalar(0, 128, 255);
     Scalar black = Scalar(0, 0, 0);
@@ -339,6 +374,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
     double textScale = 5;
     int textThinkness = 4;
+
 
     for (int j = 0; j < 4; j++) {
         line(contouredImage1, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
@@ -380,6 +416,10 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     logOStream(msg);
 
     if (distance > (double) scanParams.getDistance()) {
+        msg <<
+            "(Failed distance test: " << distance << " > "
+            << scanParams.getDistance() << ")";
+        logOStream(msg);
         return NULL;
     }
 
@@ -393,17 +433,18 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     boundingRectPoints.clear();
 
     if (hasValidGuide) {
+        boundingRectPoints.push_back(Point2f(topLeft));
+        boundingRectPoints.push_back(Point2f(bottomRight.x, topLeft.y));
+        boundingRectPoints.push_back(Point2f(bottomRight));
+        boundingRectPoints.push_back(Point2f(topLeft.x, bottomRight.y));
+
+    } else {
         float h = rect.size.height;//MIN(rect.size.height,rect.size.width);
         float w = rect.size.width;//MAX(rect.size.height,rect.size.width);
         boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y));
         boundingRectPoints.push_back(Point2f(boundRect.x, boundRect.y + h));
         boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y));
         boundingRectPoints.push_back(Point2f(boundRect.x + w, boundRect.y + h));
-    } else {
-        boundingRectPoints.push_back(Point2f(topLeft));
-        boundingRectPoints.push_back(Point2f(bottomRight.x, topLeft.y));
-        boundingRectPoints.push_back(Point2f(bottomRight));
-        boundingRectPoints.push_back(Point2f(topLeft.x, bottomRight.y));
     }
 
     for (int i = 0; i < 4; ++i) {

@@ -324,6 +324,16 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
             }
 
+            init {
+                nativeDocScanner.distance = 300000
+                nativeDocScanner.sharpness = 10
+                nativeDocScanner.guidingRect = RectF(
+                    topLeft?.x?.toFloat() ?: 0.0f,
+                    topLeft?.y?.toFloat() ?: 0.0f,
+                    bottomRight?.x?.toFloat() ?: 0.0f,
+                    bottomRight?.y?.toFloat() ?: 0.0f
+                )
+            }
 
             /**
              * Analyzes an image to produce a result.
@@ -364,14 +374,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 mat.copyTo(temp1)
                 mat.copyTo(temp2)
 
-                nativeDocScanner.distance = 30000
-                nativeDocScanner.sharpness = 4
-                nativeDocScanner.guidingRect = RectF(
-                    topLeft?.x?.toFloat() ?: 0.0f,
-                    topLeft?.y?.toFloat() ?: 0.0f,
-                    bottomRight?.x?.toFloat() ?: 0.0f,
-                    bottomRight?.y?.toFloat() ?: 0.0f
-                )
+
 
                 nativeDocScanner.scan(
                     mat.nativeObjAddr,
