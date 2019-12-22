@@ -215,7 +215,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     Laplacian(gray, lap, CV_64F);
     meanStdDev(lap, mean, stdDev);
 
-    logMeanAndStd(mean, stdDev);
+//    logMeanAndStd(mean, stdDev);
 
     // require decent degree of sharpness
     if (stdDev.at<double>(0, 0) > scanParams.getSharpness()) {
@@ -297,11 +297,6 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
         }
     }
 
-    msg << "Approx Poly: Size " << approxPoly.size() << ", area: " << maxArea
-        << ", Image size:"
-        << srcImage.cols * srcImage.rows;
-    logOStream(msg);
-
     // was a guide provided in the params?
     Point2f topLeft = scanParams.getTopLeft();
     Point2f bottomRight = scanParams.getBottomRight();
@@ -312,13 +307,10 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
     float area = static_cast<float>(maxArea);
 
-    msg << "Guiding rect (valid: " << hasValidGuide << ") :" << topLeft << "," << bottomRight
-        << " Area: " << guideArea;
-    logOStream(msg);
-
+    int imageSize = srcImage.cols * srcImage.rows;
     bool areasMatch = hasValidGuide && abs(guideArea - area) < 0.2f * area;
-    bool areaFill = !hasValidGuide && area > -0.6 * 0.6 * srcImage.rows * srcImage.cols &&
-                    area < -0.8 * 0.8 * srcImage.rows * srcImage.cols;
+    bool areaFill = !hasValidGuide && area > -0.6 * 0.6 * imageSize &&
+                    area < -0.8 * 0.8 * imageSize;
     bool polyIsSquare = approxPoly.size() == 4;
     msg <<
         "Shape/ Area test: area: " << area
@@ -331,7 +323,17 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     if (!polyIsSquare ||
         (!areasMatch && !areaFill)) {
 
-        msg << "(Failed shape/ area test)";
+        msg << "Failed shape/ area test:";
+        logOStream(msg);
+
+
+        msg << "\tApprox Poly: Size " << approxPoly.size() << ", area: " << maxArea
+            << ", Image size:"
+            << imageSize;
+        logOStream(msg);
+        
+        msg << "\tGuiding rect (valid: " << hasValidGuide << ") :" << topLeft << "," << bottomRight
+            << " Area: " << guideArea;
         logOStream(msg);
 
         return NULL;

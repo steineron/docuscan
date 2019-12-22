@@ -71,6 +71,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             Intent(context, CameraPreviewActivity::class.java).putExtra("ratio", ratio)
     }
 
+    private var previewUseCase: UseCase? = null
+    private var analysisUseCase: UseCase? = null
+
     private var guideView: GuideView? = null
     private var documentRatio: Float = 0f
 
@@ -78,6 +81,18 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
     private var topLeft: Point? = null
     private var bottomRight: Point? = null
+
+    var processFrames = true
+        set(value) {
+            field = value
+            if(!value) {
+                runOnUiThread {
+                    CameraX.unbind(previewUseCase)
+                    CameraX.unbind(analysisUseCase)
+                }
+            }
+
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -191,6 +206,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     private val processingExecutor = Executors.newSingleThreadExecutor()
     private lateinit var textureView: TextureView
 
+
     private fun startCamera() {
 
 
@@ -202,10 +218,13 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         // If Android Studio complains about "this" being not a LifecycleOwner
         // try rebuilding the project or updating the appcompat dependency to
         // version 1.1.0 or higher.
+        previewUseCase = createPreview()
+        analysisUseCase = createImageAnalysis()
         CameraX.bindToLifecycle(
             this,
-            createPreview(),
-            createImageAnalysis() /*, createImageCapture()*/
+            previewUseCase,
+
+            analysisUseCase /*, createImageCapture()*/
         )
     }
 
@@ -271,7 +290,6 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         val imageAnalysis = ImageAnalysis(imageAnalysisConfig)
         imageAnalysis.setAnalyzer(analysisExecutor, object : ImageAnalysis.Analyzer {
 
-            var processFrames = true
             val paths = mutableListOf<String>()
 
             val nativeDocScanner = object : DocuScan() {
