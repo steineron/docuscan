@@ -101,6 +101,9 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlon
             (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage2);
         }
 
+        ostringstream msg;
+        msg << "Result: Sharpness: " << params.getSharpness() << ", Distance: " << params.getDistance();
+        logOStream(msg);
         jmethodID mResultCallback = (env)->GetMethodID(pJclass, "onResultMat", "(J)V");
 
         (env)->CallVoidMethod(thiz, mResultCallback, (jlong) processed);
@@ -237,9 +240,9 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 //    logMeanAndStd(mean, stdDev);
 
     // require decent degree of sharpness
-    if (stdDev.at<double>(0, 0) > scanParams.getSharpness()) {
+    if (stdDev.at<double>(0, 0) < scanParams.getSharpness()) {
         msg <<
-            "(Failed sharpness test: " << stdDev.at<double>(0, 0) << " > "
+            "(Failed sharpness test: " << stdDev.at<double>(0, 0) << " < "
             << scanParams.getSharpness() << ")";
         logOStream(msg);
         return NULL;
