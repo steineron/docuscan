@@ -71,12 +71,14 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             context: Context,
             ratio: Float,
             distance: Int = 300,
-            sharpness: Int = 10
+            sharpness: Int = 10,
+            dev:Boolean = true
         ): Intent =
             Intent(context, CameraPreviewActivity::class.java)
                 .putExtra("ratio", ratio)
                 .putExtra("distance", distance)
                 .putExtra("sharpness", sharpness)
+                .putExtra("dev", dev)
     }
 
     private var previewUseCase: UseCase? = null
@@ -86,6 +88,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     private var documentRatio: Float = 0f
     private var documentSharpness: Int = 0
     private var documentDistance: Int = 0
+    private var isDev: Boolean = false
 
     // optional TL and BR that define the ROI (Region Of Interest) rect
     // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
@@ -167,6 +170,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
         documentSharpness = intent.getIntExtra("sharpness", -1)
         documentDistance = intent.getIntExtra("distance", -1)
+        isDev = intent.getBooleanExtra("dev", false)
         // Add this at the end of onCreate function
 
         textureView = findViewById(R.id.view_finder)
@@ -307,6 +311,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             val nativeDocScanner = object : DocuScan() {
 
                 override fun onIntermitentMat(matAddrOut: Long) {
+                    if(!isDev){
+                        return
+                    }
                     Log.d("LOCII", "onIntermitentMat: mat address: $matAddrOut")
 
                     var temp = Mat(matAddrOut)

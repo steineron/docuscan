@@ -43,6 +43,15 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/edit_sharpness" />
 
+    <TextView
+        android:id="@+id/dev_images_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save stages"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/edit_distance"
+        android:layout_marginTop="16dp"/>
+
     <Button
         android:id="@+id/start_capturing"
         android:layout_width="wrap_content"
@@ -91,5 +100,14 @@
         android:text="300"
         app:layout_constraintStart_toStartOf="@+id/guideline_left"
         app:layout_constraintTop_toTopOf="@+id/distance_label" />
+
+    <Switch
+        android:id="@+id/dev_images"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:checked="true"
+        android:text="@null"
+        app:layout_constraintStart_toStartOf="@+id/guideline_left"
+        app:layout_constraintTop_toTopOf="@+id/dev_images_label" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

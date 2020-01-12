@@ -36,7 +36,8 @@ class MainActivity : AppCompatActivity() {
                     this,
                     85f / 55f/*ratio of DL*/,
                     distance,
-                    sharpness
+                    sharpness,
+                    dev_images.isChecked
                 ), 126
             )
         }
