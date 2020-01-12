@@ -377,6 +377,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     bottomRight?.x?.toFloat() ?: 0.0f,
                     bottomRight?.y?.toFloat() ?: 0.0f
                 )
+                nativeDocScanner.devMode = isDev
             }
 
             /**

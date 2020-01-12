@@ -23,25 +23,25 @@
             android:orientation="horizontal">
 
             <ImageView
+                android:layout_margin="16dp"
+                android:background="#3d3d3d"
                 android:id="@+id/captured_document"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                app:layout_constraintBottom_toTopOf="@id/start_capturing"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                />
 
             <ImageView
                 android:id="@+id/tmp1"
+                android:layout_margin="16dp"
+                android:background="#3d3d3d"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
-                app:layout_constraintBottom_toTopOf="@id/start_capturing"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+               />
 
             <ImageView
                 android:id="@+id/tmp2"
+                android:layout_margin="16dp"
+                android:background="#3d3d3d"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent" />
 
@@ -57,7 +57,7 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         android:background="#88888888"
-        android:textColor="@android:color/holo_green_light"
+        android:textColor="#1d1d1d"
         android:layout_margin="16dp"
         android:padding="24dp"/>
 

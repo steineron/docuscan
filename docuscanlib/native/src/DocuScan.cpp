@@ -389,10 +389,10 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     box[2] = Point2f(boundRect.x + boundRect.width, boundRect.y + boundRect.height);
     box[3] = Point2f(boundRect.x, boundRect.y + boundRect.height);
 
-    Scalar blue = Scalar(255, 128, 0);
-    Scalar red = Scalar(0, 128, 255);
-    Scalar black = Scalar(0, 0, 0);
-    Scalar orange = Scalar(0, 255, 220);
+    Scalar blue = Scalar(255, 128, 0,255);
+    Scalar red = Scalar(0, 128, 255,255);
+    Scalar black = Scalar(0, 0, 0,255);
+    Scalar orange = Scalar(0, 255, 220,255);
 
     String numbers[] = {"1", "2", "3", "4"};
 
@@ -494,7 +494,8 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     transmtx = getPerspectiveTransform(polyPoints, boundingRectPoints);
     warpPerspective(transformed, transformed, transmtx, transformed.size());
 
-    transformed.copyTo(mat);
+    Mat cropped (transformed, boundRect);
+    cropped.copyTo(mat);
 //    contouredImage1.copyTo(temp1);
 //    contouredImage2.copyTo(temp2);
     return &mat;

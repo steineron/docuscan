@@ -40,6 +40,13 @@ abstract class DocuScan {
         }
 
     private external fun setDistance(addr: Long, distance: Int)
+
+    var devMode:Boolean = false
+    set(value) {
+        field = value
+        setDevMode(nativeObject,value)
+    }
+
     private external fun setDevMode(addr: Long, devModeOn: Boolean)
 
 
