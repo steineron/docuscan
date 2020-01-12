@@ -81,6 +81,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 .putExtra("dev", dev)
     }
 
+    private var startTime: Long = 0
+
     private var previewUseCase: UseCase? = null
     private var analysisUseCase: UseCase? = null
 
@@ -236,6 +238,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         // version 1.1.0 or higher.
         previewUseCase = createPreview()
         analysisUseCase = createImageAnalysis()
+        startTime = System.currentTimeMillis()
         CameraX.bindToLifecycle(
             this,
             previewUseCase,
@@ -349,7 +352,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                             if (success) {
 
                                 paths.add(path)
-                                val data = Intent().putExtra("paths", paths.toTypedArray())
+                                val data = Intent()
+                                    .putExtra("paths", paths.toTypedArray())
+                                    .putExtra("duration", System.currentTimeMillis()-startTime)
+
                                 setResult(RESULT_OK, data)
 //                                result.release()
                                 finish()

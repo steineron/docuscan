@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
 
         android:layout_height="match_parent"
-        app:layout_constraintBottom_toTopOf="@id/preview_finished"
+        app:layout_constraintBottom_toTopOf="@id/summary_text"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -49,18 +49,29 @@
     </HorizontalScrollView>
 
 
-        <Button
-            android:id="@+id/preview_finished"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Done"
-            app:layout_constraintBottom_toBottomOf="parent"
+    <TextView
+        android:id="@+id/summary_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toTopOf="@+id/preview_finished"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        android:background="#88888888"
+        android:textColor="@android:color/holo_green_light"
+        android:layout_margin="16dp"
+        android:padding="24dp"/>
 
-            app:layout_constraintLeft_toLeftOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
+    <Button
+        android:id="@+id/preview_finished"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Done"
+        app:layout_constraintBottom_toBottomOf="parent"
 
-            />
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
 
+        />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

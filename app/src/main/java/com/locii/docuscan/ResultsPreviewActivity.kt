@@ -14,8 +14,10 @@ class ResultsPreviewActivity : AppCompatActivity() {
 
     companion object {
 
-        fun createForPaths(paths: Array<String?>, context: Context): Intent =
-            Intent(context, ResultsPreviewActivity::class.java).putExtra("paths", paths)
+        fun createForPaths(paths: Array<String?>, duration:Long, context: Context): Intent =
+            Intent(context, ResultsPreviewActivity::class.java)
+                .putExtra("paths", paths)
+                .putExtra("duration", duration)
 
     }
 
@@ -44,6 +46,10 @@ class ResultsPreviewActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+        intent?.getLongExtra("duration",0)?.let {
+            val s = "Scanning completed in ${it / 1000} seconds"
+            summary_text.text = s
         }
     }
 

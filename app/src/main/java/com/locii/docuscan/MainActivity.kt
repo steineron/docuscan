@@ -11,6 +11,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 class MainActivity : AppCompatActivity() {
 
     var paths: Array<String?> = emptyArray()
+    var duration: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,15 +58,21 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        data?.getStringArrayExtra("paths")?.let {
+        data?.apply {
+            getStringArrayExtra("paths")?.let {
 
-            paths = it
+                paths = it
+            }
+            getLongExtra("duration", 0).let {
+                duration = it
+            }
             viewResults()
+
         }
     }
 
     private fun viewResults() {
-        startActivity(ResultsPreviewActivity.createForPaths(paths, this))
+        startActivity(ResultsPreviewActivity.createForPaths(paths, duration, this))
     }
 
 }
