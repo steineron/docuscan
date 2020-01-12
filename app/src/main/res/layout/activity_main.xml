@@ -6,47 +6,42 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <HorizontalScrollView
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_top"
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="48dp"
+        app:layout_constraintStart_toStartOf="parent" />
 
-        app:layout_constraintBottom_toTopOf="@id/start_capturing"
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline_left"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_begin="96dp" />
+
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/configurations"
+        android:layout_width="1dp"
+        android:layout_height="1dp" />
+
+    <TextView
+        android:id="@+id/sharpness_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sharpness (default 10)"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="@+id/guideline_top" />
 
-        <LinearLayout
-            android:id="@+id/images_layout"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:id="@+id/captured_document"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                app:layout_constraintBottom_toTopOf="@id/start_capturing"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <ImageView
-                android:id="@+id/tmp1"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                app:layout_constraintBottom_toTopOf="@id/start_capturing"
-                app:layout_constraintLeft_toLeftOf="parent"
-                app:layout_constraintRight_toRightOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-            <ImageView
-                android:id="@+id/tmp2"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent" />
-
-        </LinearLayout>
-    </HorizontalScrollView>
-
+    <TextView
+        android:id="@+id/distance_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Distance (default 300)"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/edit_sharpness" />
 
     <Button
         android:id="@+id/start_capturing"
@@ -58,6 +53,43 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
 
-        />
+        app:layout_constraintTop_toBottomOf="@+id/edit_distance" />
+
+
+    <Button
+        android:id="@+id/view_results"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+
+        android:text="View Scans"
+        app:layout_constraintBottom_toBottomOf="parent"
+
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+
+        app:layout_constraintTop_toBottomOf="@+id/start_capturing" />
+
+    <EditText
+        android:id="@+id/edit_sharpness"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:ems="10"
+        android:inputType="number"
+        android:text="10"
+        app:layout_constraintStart_toStartOf="@+id/guideline_left"
+        app:layout_constraintTop_toTopOf="@+id/sharpness_label" />
+
+    <EditText
+        android:id="@+id/edit_distance"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_weight="1"
+        android:ems="10"
+        android:inputType="number"
+        android:text="300"
+        app:layout_constraintStart_toStartOf="@+id/guideline_left"
+        app:layout_constraintTop_toTopOf="@+id/distance_label" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

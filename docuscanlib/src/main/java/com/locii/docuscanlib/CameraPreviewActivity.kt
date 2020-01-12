@@ -67,8 +67,16 @@ private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
     companion object {
-        fun createGuidedBoxIntent(context: Context, ratio: Float): Intent =
-            Intent(context, CameraPreviewActivity::class.java).putExtra("ratio", ratio)
+        fun createGuidedBoxIntent(
+            context: Context,
+            ratio: Float,
+            distance: Int = 300,
+            sharpness: Int = 10
+        ): Intent =
+            Intent(context, CameraPreviewActivity::class.java)
+                .putExtra("ratio", ratio)
+                .putExtra("distance", distance)
+                .putExtra("sharpness", sharpness)
     }
 
     private var previewUseCase: UseCase? = null
@@ -76,6 +84,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
     private var guideView: GuideView? = null
     private var documentRatio: Float = 0f
+    private var documentSharpness: Int = 0
+    private var documentDistance: Int = 0
 
     // optional TL and BR that define the ROI (Region Of Interest) rect
     // e.g. DL has a 85:55 mm ratio so that can be used to draw a ROI to guild the user
@@ -85,13 +95,12 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     var processFrames = true
         set(value) {
             field = value
-            if(!value) {
+            if (!value) {
                 runOnUiThread {
                     CameraX.unbind(previewUseCase)
                     CameraX.unbind(analysisUseCase)
                 }
             }
-
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -155,6 +164,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 }
             }
         }
+
+        documentSharpness = intent.getIntExtra("sharpness", -1)
+        documentDistance = intent.getIntExtra("distance", -1)
         // Add this at the end of onCreate function
 
         textureView = findViewById(R.id.view_finder)
@@ -343,8 +355,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             }
 
             init {
-                nativeDocScanner.distance = 300000
-                nativeDocScanner.sharpness = 10
+                nativeDocScanner.distance =
+                    if (documentDistance > 0) documentDistance * 1000 else 300000
+                nativeDocScanner.sharpness = if (documentSharpness > 0) documentSharpness else 10
                 nativeDocScanner.guidingRect = RectF(
                     topLeft?.x?.toFloat() ?: 0.0f,
                     topLeft?.y?.toFloat() ?: 0.0f,
