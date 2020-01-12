@@ -22,6 +22,7 @@ private:
     Point2f topLeft, bottomRight;
     int distance = 50000;
     double sharpness = 2.0;
+    bool devMode = false;
 public:
 
     DocuScan() : topLeft(Point2f()), bottomRight() {}
@@ -42,6 +43,10 @@ public:
         return sharpness;
     }
 
+    bool getDevMode() const {
+        return devMode;
+    }
+
     void setDistance(int d) {
         distance = d;
     }
@@ -53,6 +58,10 @@ public:
     void setGuide(Point2f &tl, Point2f &br) {
         topLeft = Point2f(tl);
         bottomRight = Point2f(br);
+    }
+
+    void setDevMode(bool on) {
+        devMode = on;
     }
 };
 
@@ -86,9 +95,11 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlon
 
         jclass pJclass = (env)->GetObjectClass(thiz);
 
-        jmethodID midCallback = (env)->GetMethodID(pJclass, "onIntermitentMat", "(J)V");
-        (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage1);
-        (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage2);
+        if(params.getDevMode()) {
+            jmethodID midCallback = (env)->GetMethodID(pJclass, "onIntermitentMat", "(J)V");
+            (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage1);
+            (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage2);
+        }
 
         jmethodID mResultCallback = (env)->GetMethodID(pJclass, "onResultMat", "(J)V");
 
@@ -119,6 +130,14 @@ Java_com_locii_docuscanlib_DocuScan_setDistance(JNIEnv *, jobject, jlong nativeO
 
     DocuScan &sd = *(DocuScan *) nativeObject;
     sd.setDistance(distance);
+}
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setDevMode(JNIEnv *, jobject, jlong nativeObject,
+                                                jboolean devModeOn) {
+
+    DocuScan &sd = *(DocuScan *) nativeObject;
+    sd.setDevMode(devModeOn);
 }
 
 JNIEXPORT void

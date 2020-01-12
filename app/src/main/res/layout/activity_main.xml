@@ -105,7 +105,7 @@
         android:id="@+id/dev_images"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:checked="true"
+        android:checked="false"
         android:text="@null"
         app:layout_constraintStart_toStartOf="@+id/guideline_left"
         app:layout_constraintTop_toTopOf="@+id/dev_images_label" />
