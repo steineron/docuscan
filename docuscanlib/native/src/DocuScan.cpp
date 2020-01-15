@@ -68,11 +68,18 @@ public:
 static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2,
                          DocuScan &scanParams);
 
+static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
+                         const Mat &contouredImage2, const DocuScan &scanParams, Mat &edged);
+
 static void logMeanAndStd(Mat &mean, Mat &stdDev);
 
 static void logOStream(ostringstream &ios);
 
 void dilateAndErode(const Mat &mat);
+
+Mat *extractWithCountours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
+                          const Mat &contouredImage2, const DocuScan &scanParams, Mat &edge1,
+                          ostringstream &msg);
 
 extern "C" {
 
@@ -222,7 +229,7 @@ static void logMeanAndStd(Mat &mean, Mat &stdDev) {
 
 static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2,
                          DocuScan &scanParams) {
-    Mat gray, blurImage, edge1;
+    Mat gray, blurImage, edged;
     ostringstream msg;
 
 
@@ -273,26 +280,32 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
     // Run the edge detector on grayscale
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
-    Canny(binary, edge1, 1, 3, 3);
+    Canny(binary, edged, 1, 3, 3);
     binary.release();
+    return extractWithContours(srcImage, mat, contouredImage1, contouredImage2, scanParams, edged);
+}
 
+static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
+                          const Mat &contouredImage2, const DocuScan &scanParams, Mat &edged
+                          ) {
+    ostringstream msg;
     // find contours in hte canny image (edged)
     int levels = 3;
     vector<vector<Point> > contours;
     vector<Vec4i> hierarchy;
 
     vector<vector<Point> > contours0;
-    findContours(edge1, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
+    findContours(edged, contours0, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE);
 
 
-    edge1.release();
+    edged.release();
 
     contours.resize(contours0.size());
     for (size_t k = 0; k < contours0.size(); k++)
         approxPolyDP(Mat(contours0[k]), contours[k], 3, true);
 
     // see example in https://docs.opencv.org/master/db/d00/samples_2cpp_2squares_8cpp-example.html#a17
-    // for extracting squares
+// for extracting squares
 
     // or do this: find the contour with largest area - assume it is the document
 
@@ -353,7 +366,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
             << ", Image size:"
             << imageSize;
         logOStream(msg);
-        
+
         msg << "\tGuiding rect (valid: " << hasValidGuide << ") :" << topLeft << "," << bottomRight
             << " Area: " << guideArea;
         logOStream(msg);
@@ -363,7 +376,7 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
 
     drawContours(contouredImage1, contours, maxAreaContour, Scalar(128, 255, 255),
-                 3, LINE_AA, hierarchy, std::abs(_levels));
+                 3, LINE_AA, hierarchy, abs(_levels));
 
 
 
@@ -389,10 +402,10 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     box[2] = Point2f(boundRect.x + boundRect.width, boundRect.y + boundRect.height);
     box[3] = Point2f(boundRect.x, boundRect.y + boundRect.height);
 
-    Scalar blue = Scalar(255, 128, 0,255);
-    Scalar red = Scalar(0, 128, 255,255);
-    Scalar black = Scalar(0, 0, 0,255);
-    Scalar orange = Scalar(0, 255, 220,255);
+    Scalar blue = Scalar(255, 128, 0, 255);
+    Scalar red = Scalar(0, 128, 255, 255);
+    Scalar black = Scalar(0, 0, 0, 255);
+    Scalar orange = Scalar(0, 255, 220, 255);
 
     String numbers[] = {"1", "2", "3", "4"};
 
@@ -415,9 +428,9 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
 
 
     // transform the skewed image
-    std::vector<Point2f> polyPoints;
-    std::vector<Point2f> boxPoints;
-    std::vector<Point2f> boundingRectPoints;
+    vector<Point2f> polyPoints;
+    vector<Point2f> boxPoints;
+    vector<Point2f> boundingRectPoints;
     // poly to box:
 
     for (int i = 0; i < 4; i++) {
@@ -494,13 +507,11 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     transmtx = getPerspectiveTransform(polyPoints, boundingRectPoints);
     warpPerspective(transformed, transformed, transmtx, transformed.size());
 
-    Mat cropped (transformed, boundRect);
+    Mat cropped(transformed, boundRect);
     cropped.copyTo(mat);
 //    contouredImage1.copyTo(temp1);
 //    contouredImage2.copyTo(temp2);
     return &mat;
-
-
 }
 
 void dilateAndErode(const Mat &mat) {
