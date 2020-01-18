@@ -41,6 +41,40 @@ abstract class DocuScan {
 
     private external fun setDistance(addr: Long, distance: Int)
 
+    var minLineLength: Int = 200
+        set(value) {
+            field = value
+            setMinLineLength(nativeObject, value)
+        }
+
+    private external fun setMinLineLength(addr: Long, l: Int)
+
+
+    var maxGap: Int = 10
+        set(value) {
+            field = value
+            setMaxLineGap(nativeObject, value)
+        }
+
+    private external fun setMaxLineGap(addr: Long, gap: Int)
+
+    var edges: Int = 10
+        set(value) {
+            field = value
+            setNumberOfEdges(nativeObject, value)
+        }
+
+    private external fun setNumberOfEdges(addr: Long, gap: Int)
+
+
+     var linesThreashold: Int = 50
+        set(value) {
+            field = value
+            setLinesThreshold(nativeObject, value)
+        }
+
+    private external fun setLinesThreshold(addr: Long, threshold: Int)
+
     var devMode:Boolean = false
     set(value) {
         field = value

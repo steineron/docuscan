@@ -23,6 +23,10 @@ private:
     int distance = 50000;
     double sharpness = 2.0;
     bool devMode = false;
+    int linesThreshold = 50;
+    int lineMinWidth = 200;
+    int maxLineGap = 10;
+    int edges = 3;
 public:
 
     DocuScan() : topLeft(Point2f()), bottomRight() {}
@@ -45,6 +49,38 @@ public:
 
     bool getDevMode() const {
         return devMode;
+    }
+
+    int getLinesThreshold() const {
+        return linesThreshold;
+    }
+
+    void setLinesThreshold(int linesThreshold) {
+        DocuScan::linesThreshold = linesThreshold;
+    }
+
+    int getLineMinWidth() const {
+        return lineMinWidth;
+    }
+
+    void setLineMinWidth(int lineMinWidth) {
+        DocuScan::lineMinWidth = lineMinWidth;
+    }
+
+    int getMaxLineGap() const {
+        return maxLineGap;
+    }
+
+    void setMaxLineGap(int maxLineGap) {
+        DocuScan::maxLineGap = maxLineGap;
+    }
+
+    int getEdges() const {
+        return edges;
+    }
+
+    void setEdges(int edges) {
+        DocuScan::edges = edges;
     }
 
     void setDistance(int d) {
@@ -168,6 +204,43 @@ Java_com_locii_docuscanlib_DocuScan_setSharpness(JNIEnv *, jobject, jlong native
 
 JNIEXPORT void
 JNICALL
+Java_com_locii_docuscanlib_DocuScan_setLinesThreshold(JNIEnv *, jobject, jlong nativeObject,
+                                                      jint threshold) {
+
+    DocuScan &sd = *(DocuScan *) nativeObject;
+    sd.setLinesThreshold(threshold);
+}
+
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setMinLineLength(JNIEnv *, jobject, jlong nativeObject,
+                                                     jint length) {
+
+    DocuScan &sd = *(DocuScan *) nativeObject;
+    sd.setLineMinWidth(length);
+}
+
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setMaxLineGap(JNIEnv *, jobject, jlong nativeObject,
+                                                  jint gap) {
+
+    DocuScan &sd = *(DocuScan *) nativeObject;
+    sd.setMaxLineGap(gap);
+}
+
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setNumberOfEdges(JNIEnv *, jobject, jlong nativeObject,
+                                                  jint n) {
+
+    DocuScan &sd = *(DocuScan *) nativeObject;
+    sd.setEdges(n);
+}
+
+
+JNIEXPORT void
+JNICALL
 Java_com_locii_docuscanlib_DocuScan_setGuide(JNIEnv *, jobject, jlong nativeObject, jfloat tl_x,
                                              jfloat tl_y, jfloat br_x, jfloat br_y) {
 
@@ -180,6 +253,18 @@ Java_com_locii_docuscanlib_DocuScan_setGuide(JNIEnv *, jobject, jlong nativeObje
 
 }
 
+inline std::ostream &operator<< (std::ostream &s, const DocuScan &p)
+{
+    return s << "[Dist: " << p.getDistance()
+    << ", Sharp : " << p.getSharpness()
+    << ", Edges : " << p.getEdges()
+    << ", Gap : " << p.getMaxLineGap()
+    << ", Thrsh: " << p.getLinesThreshold()
+    << ", Min Line: " << p.getLineMinWidth()
+    << ", TL: " << p.getTopLeft()
+    << ", BR: " << p.getBottomRight()
+    << ", Dev: " << p.getDevMode() <<"]";
+}
 
 /**
  * find the closesest point to @param p in @param points by computing
@@ -355,36 +440,45 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
     int success = 0;
 
 
+    ostringstream msg;
+    msg << "Scanning with Params: " << scanParams;
+    logOStream(msg);
+
     // create 4 images from those ROI and extract Hough lines
     for (int j = 0; j < 4; j++) {
         RoiMetaData metaData = roiData[j];
         Mat roiImage = edged(metaData.roi);
-        ostringstream msg;
         msg << "ROI# " << j << " (" << metaData.roi << ")";
         logOStream(msg);
 
         vector<Vec4i> linesP; // will hold the results of the detection
         // run the actual detection
-        HoughLinesP(roiImage, linesP, 1, CV_PI / 180, 50, /*0.5 * MAX(roi[j].width, roi[j].height)*/
-                    200,
-                    10);
+        HoughLinesP(roiImage, linesP, 1, CV_PI / 180,
+                    scanParams.getLinesThreshold(),
+                    scanParams.getLineMinWidth()
+                    * MAX(metaData.roi.width, metaData.roi.height) / 100.0,
+                    static_cast<double>(scanParams.getMaxLineGap()));
 
 
 //        for each of the lines detected in this region - inspect the length?
         for (size_t i = 0; i < linesP.size(); i++) {
             Vec4i l = linesP[i];
-            const Point2i &pt1 = Point(l[0], l[1]);
-            const Point2i &pt2 = Point(l[2], l[3]);
-            msg << "Inspecting line #" << i << ": {" << pt1 << ", " << pt2 << "}";
+            // the point of the line
+            const Point2i &lp1 = Point(l[0], l[1]);
+            const Point2i &lp2 = Point(l[2], l[3]);
+            msg << "Inspecting line #" << i << ": {" << lp1 << ", " << lp2 << "}";
             logOStream(msg);
-//            line(devMat1, pt1, pt2, Scalar(255, 0, 255, 255), 5, LINE_AA);
 
-            // figure out the lies closest to the guide's top and bottom
-            // top left + right
-            int d1 = eucledeanDistance(pt1, tl) + eucledeanDistance(pt2, tr);
-            int d2 = eucledeanDistance(pt1, tr) + eucledeanDistance(pt2, tl);
-            if (d1 <= metaData.distance || d2 <= metaData.distance) {
-                metaData.distance = MIN(d1, d2);
+            Point2i p = Point(metaData.roi.x + l[0], metaData.roi.y + l[1]);
+            Point2i q = Point(metaData.roi.x + l[2], metaData.roi.y + l[3]);
+
+            line(devMat1, p, q, Scalar(255, 0, 255, 255), 5, LINE_AA);
+
+            // figure out the liens closest to the guide's top and bottom
+            //  left + right
+            int d1 = eucledeanDistance(lp1, metaData.roi.tl()) + eucledeanDistance(lp2, metaData.roi.br());
+            if (d1 <= metaData.distance) {
+                metaData.distance =d1;
                 metaData.selectedLine = l;
                 msg << "Updating candidate for ROI: " << j << ", " << metaData.roi
                     << ", line: " << l
@@ -397,7 +491,7 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
         }
 
         // if the distance is too big - terminate
-        if (linesP.size() == 0 || metaData.distance > distance) {
+        if (linesP.empty() || metaData.distance > distance) {
             continue;
         }
 
@@ -411,9 +505,11 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
 
     }
 
-    if (success >= 3) {
+    if (success >= scanParams.getEdges()) {
         return &mat;
-    } else return NULL;
+    } else {
+        return NULL;
+    }
 }
 
 

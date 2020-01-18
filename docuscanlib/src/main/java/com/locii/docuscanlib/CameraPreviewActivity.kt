@@ -36,7 +36,6 @@ import androidx.camera.core.ImageCapture.OnImageCapturedListener
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import kotlinx.android.synthetic.main.main_camera.*
 import org.opencv.android.Utils
 import org.opencv.core.CvType.CV_8UC4
 import org.opencv.core.Mat
@@ -73,12 +72,20 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             ratio: Float,
             distance: Int = 300,
             sharpness: Int = 10,
+            minLineLength: Int = 200,
+            linesThreshold: Int = 50,
+            maxLineGap:Int =10,
+            edges:Int=3,
             dev: Boolean = true
         ): Intent =
             Intent(context, CameraPreviewActivity::class.java)
                 .putExtra("ratio", ratio)
                 .putExtra("distance", distance)
                 .putExtra("sharpness", sharpness)
+                .putExtra("minLineLength", minLineLength)
+                .putExtra("linesThreshold", linesThreshold)
+                .putExtra("maxLineGap", maxLineGap)
+                .putExtra("edges", edges)
                 .putExtra("dev", dev)
     }
 
@@ -91,6 +98,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     private var documentRatio: Float = 0f
     private var documentSharpness: Int = 0
     private var documentDistance: Int = 0
+    private var minLineLength: Int = 200
+    private var maxGap: Int = 10
+    private var linesThreshold: Int = 50
+    private var edges: Int = 3
     private var isDev: Boolean = false
 
     // optional TL and BR that define the ROI (Region Of Interest) rect
@@ -173,6 +184,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
         documentSharpness = intent.getIntExtra("sharpness", -1)
         documentDistance = intent.getIntExtra("distance", -1)
+        linesThreshold = intent.getIntExtra("linesThreshold", -1)
+        minLineLength = intent.getIntExtra("minLineLength", -1)
+        maxGap = intent.getIntExtra("maxLineGap", -1)
+        edges = intent.getIntExtra("edges", 3)
         isDev = intent.getBooleanExtra("dev", false)
         // Add this at the end of onCreate function
 
@@ -315,6 +330,8 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             val nativeDocScanner = object : DocuScan() {
 
                 override fun onIntermitentMat(matAddrOut: Long) {
+                    processFrames = false
+
                     if (!isDev) {
                         return
                     }
@@ -340,7 +357,6 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
                 override fun onResultMat(matAddrOut: Long) {
                     Log.d("LOCII", "onResultMat: mat address: $matAddrOut")
-                    processFrames = false
 
                     var temp = Mat(matAddrOut)
                     temp.clone().also {
@@ -379,6 +395,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                     bottomRight?.y?.toFloat() ?: 0.0f
                 )
                 nativeDocScanner.devMode = isDev
+                nativeDocScanner.linesThreashold = linesThreshold
+                nativeDocScanner.minLineLength = minLineLength
+                nativeDocScanner.maxGap = maxGap
+                nativeDocScanner.edges = edges
             }
 
             /**

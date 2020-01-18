@@ -1,5 +1,6 @@
 package com.locii.docuscan
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -17,6 +18,30 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        getSharedPreferences("MainActivity", Context.MODE_PRIVATE).run {
+            getInt("distance", 300).toString().also {
+                edit_distance.setText(it)
+            }
+            getInt("sharpness", 7).toString().also {
+                edit_sharpness.setText(it)
+            }
+            getInt("minLineLength", 20).toString().also {
+                edit_line_length.setText(it)
+            }
+            getInt("linesThreshold", 25).toString().also {
+                edit_threshold.setText(it)
+            }
+            getInt("maxLineGap", 5).toString().also {
+                edit_gap.setText(it)
+            }
+            getInt("edges", 3).toString().also {
+                edit_sides.setText(it)
+            }
+            getBoolean("dev", true).also {
+                dev_images.isChecked = it
+            }
+        }
+
         start_capturing.setOnClickListener {
 
             val distance = try {
@@ -29,8 +54,43 @@ class MainActivity : AppCompatActivity() {
 
                 edit_sharpness.text.toString().toInt()
             } catch (e: Exception) {
-                300
+                7
             }
+            val length = try {
+
+                edit_line_length.text.toString().toInt()
+            } catch (e: Exception) {
+                20
+            }
+            val threshold = try {
+
+                edit_threshold.text.toString().toInt()
+            } catch (e: Exception) {
+                25
+            }
+            val gap = try {
+
+                edit_gap.text.toString().toInt()
+            } catch (e: Exception) {
+                5
+            }
+            val edges = try {
+                edit_sides.text.toString().toInt()
+            } catch (e: Exception) {
+                3
+            }
+
+            getSharedPreferences("MainActivity", Context.MODE_PRIVATE).edit().run {
+                putInt("distance", distance)
+                putInt("sharpness", sharpness)
+                putInt("minLineLength", length)
+                putInt("linesThreshold", threshold)
+                putInt("maxLineGap", gap)
+                putInt("edges", edges)
+                putBoolean("dev", dev_images.isChecked)
+                commit()
+            }
+
 
             startActivityForResult(
                 CameraPreviewActivity.createGuidedBoxIntent(
@@ -38,6 +98,10 @@ class MainActivity : AppCompatActivity() {
                     85f / 55f/*ratio of DL*/,
                     distance,
                     sharpness,
+                    length,
+                    threshold,
+                    gap,
+                    edges,
                     dev_images.isChecked
                 ), 126
             )
