@@ -69,13 +69,19 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
                          DocuScan &scanParams);
 
 static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
-                         const Mat &contouredImage2, const DocuScan &scanParams, Mat &edged);
+                                const Mat &contouredImage2, const DocuScan &scanParams, Mat &edged);
+
+static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devMat1,
+                                  const Mat &devMat2, const DocuScan &scanParams,
+                                  Mat &edged);
 
 static void logMeanAndStd(Mat &mean, Mat &stdDev);
 
 static void logOStream(ostringstream &ios);
 
 void dilateAndErode(const Mat &mat);
+
+static int eucledeanDistance(const Point &p1, const Point &p2);
 
 Mat *extractWithCountours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
                           const Mat &contouredImage2, const DocuScan &scanParams, Mat &edge1,
@@ -102,14 +108,15 @@ Java_com_locii_docuscanlib_DocuScan_scanDocument(JNIEnv *env, jobject thiz, jlon
 
         jclass pJclass = (env)->GetObjectClass(thiz);
 
-        if(params.getDevMode()) {
+        if (params.getDevMode()) {
             jmethodID midCallback = (env)->GetMethodID(pJclass, "onIntermitentMat", "(J)V");
             (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage1);
             (env)->CallVoidMethod(thiz, midCallback, (jlong) &contouredImage2);
         }
 
         ostringstream msg;
-        msg << "Result: Sharpness: " << params.getSharpness() << ", Distance: " << params.getDistance();
+        msg << "Result: Sharpness: " << params.getSharpness() << ", Distance: "
+            << params.getDistance();
         logOStream(msg);
         jmethodID mResultCallback = (env)->GetMethodID(pJclass, "onResultMat", "(J)V");
 
@@ -144,7 +151,7 @@ Java_com_locii_docuscanlib_DocuScan_setDistance(JNIEnv *, jobject, jlong nativeO
 JNIEXPORT void
 JNICALL
 Java_com_locii_docuscanlib_DocuScan_setDevMode(JNIEnv *, jobject, jlong nativeObject,
-                                                jboolean devModeOn) {
+                                               jboolean devModeOn) {
 
     DocuScan &sd = *(DocuScan *) nativeObject;
     sd.setDevMode(devModeOn);
@@ -282,12 +289,137 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
     Canny(binary, edged, 1, 3, 3);
     binary.release();
-    return extractWithContours(srcImage, mat, contouredImage1, contouredImage2, scanParams, edged);
+    return extractWithHoughLines(srcImage, mat, contouredImage1, contouredImage2, scanParams,
+                                 edged);
 }
 
+static int eucledeanDistance(const Point &p1, const Point &p2) {
+    return static_cast<int>(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+
+}
+
+#define TOP 0
+#define LEFT 1
+#define RIGHT 2
+#define BOTTOM 3
+#define GUTTER_RATIO 0.05
+
+class RoiMetaData {
+
+public:
+    RoiMetaData(int x, int y, int w, int h) : roi(x, y, w, h) {
+
+    }
+
+    RoiMetaData() : RoiMetaData(0, 0, 0, 0) {
+    }
+
+    Rect roi;
+    Vec4i selectedLine;
+    int distance = INT_MAX;
+
+};
+
+// https://docs.opencv.org/3.4/d9/db0/tutorial_hough_lines.html
+static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devMat1,
+                                  const Mat &devMat2, const DocuScan &scanParams,
+                                  Mat &edged) {
+    const Point2f &topLeft = scanParams.getTopLeft();
+    const Point2f &bottomRight = scanParams.getBottomRight();
+
+    Point2i tl = Point2i(static_cast<int>(topLeft.x), static_cast<int>(topLeft.y));
+    Point2i bl = Point2i(static_cast<int>(topLeft.x), static_cast<int>(bottomRight.y));
+    Point2i tr = Point2i(static_cast<int>(bottomRight.x), static_cast<int>(topLeft.y));
+    Point2i br = Point2i(static_cast<int>(bottomRight.x), static_cast<int>(bottomRight.y));
+
+    int width = tr.x - tl.x;
+    int height = bl.y - tl.y;
+    int dw = static_cast<int> (GUTTER_RATIO * width);
+    int dh = static_cast<int> (GUTTER_RATIO * height);
+
+    // crate 4 ROI to scan the lines in:
+    RoiMetaData roiData[4];
+    roiData[TOP] = RoiMetaData(tl.x - dw, tl.y - dh, width + 2 * dw, 2 * dh);
+    roiData[BOTTOM] = RoiMetaData(bl.x - dw, bl.y - dh, width + 2 * dw, 2 * dh);
+    roiData[LEFT] = RoiMetaData(tl.x - dw, tl.y - dh, 2 * dw, height + 2 * dh);
+    roiData[RIGHT] = RoiMetaData(tr.x - dw, tr.y - dh, 2 * dw, height + 2 * dh);
+
+
+    int distance = scanParams.getDistance();
+
+    // draw the roi on the dev mat
+    for (int i = 0; i < 4; i++) {
+        rectangle(devMat1, roiData[i].roi, Scalar(128, 0, 255, 255), 4, LINE_AA);
+    }
+
+    int success = 0;
+
+
+    // create 4 images from those ROI and extract Hough lines
+    for (int j = 0; j < 4; j++) {
+        RoiMetaData metaData = roiData[j];
+        Mat roiImage = edged(metaData.roi);
+        ostringstream msg;
+        msg << "ROI# " << j << " (" << metaData.roi << ")";
+        logOStream(msg);
+
+        vector<Vec4i> linesP; // will hold the results of the detection
+        // run the actual detection
+        HoughLinesP(roiImage, linesP, 1, CV_PI / 180, 50, /*0.5 * MAX(roi[j].width, roi[j].height)*/
+                    200,
+                    10);
+
+
+//        for each of the lines detected in this region - inspect the length?
+        for (size_t i = 0; i < linesP.size(); i++) {
+            Vec4i l = linesP[i];
+            const Point2i &pt1 = Point(l[0], l[1]);
+            const Point2i &pt2 = Point(l[2], l[3]);
+            msg << "Inspecting line #" << i << ": {" << pt1 << ", " << pt2 << "}";
+            logOStream(msg);
+//            line(devMat1, pt1, pt2, Scalar(255, 0, 255, 255), 5, LINE_AA);
+
+            // figure out the lies closest to the guide's top and bottom
+            // top left + right
+            int d1 = eucledeanDistance(pt1, tl) + eucledeanDistance(pt2, tr);
+            int d2 = eucledeanDistance(pt1, tr) + eucledeanDistance(pt2, tl);
+            if (d1 <= metaData.distance || d2 <= metaData.distance) {
+                metaData.distance = MIN(d1, d2);
+                metaData.selectedLine = l;
+                msg << "Updating candidate for ROI: " << j << ", " << metaData.roi
+                    << ", line: " << l
+                    << ", distance: " << metaData.distance;
+                logOStream(msg);
+
+
+            }
+
+        }
+
+        // if the distance is too big - terminate
+        if (linesP.size() == 0 || metaData.distance > distance) {
+            continue;
+        }
+
+        success++;
+
+        Vec4i l = metaData.selectedLine;
+        Point2i pt1 = Point(metaData.roi.x + l[0], metaData.roi.y + l[1]);
+        Point2i pt2 = Point(metaData.roi.x + l[2], metaData.roi.y + l[3]);
+
+        line(devMat1, pt1, pt2, Scalar(255, 255, 0, 255), 5, LINE_AA);
+
+    }
+
+    if (success >= 3) {
+        return &mat;
+    } else return NULL;
+}
+
+
 static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
-                          const Mat &contouredImage2, const DocuScan &scanParams, Mat &edged
-                          ) {
+                                const Mat &contouredImage2, const DocuScan &scanParams,
+                                Mat &edged) {
     ostringstream msg;
     // find contours in hte canny image (edged)
     int levels = 3;
@@ -367,7 +499,8 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
             << imageSize;
         logOStream(msg);
 
-        msg << "\tGuiding rect (valid: " << hasValidGuide << ") :" << topLeft << "," << bottomRight
+        msg << "\tGuiding rect (valid: " << hasValidGuide << ") :" << topLeft << ","
+            << bottomRight
             << " Area: " << guideArea;
         logOStream(msg);
 
@@ -415,7 +548,8 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
 
     for (int j = 0; j < 4; j++) {
         line(contouredImage1, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
-        putText(contouredImage1, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale, blue,
+        putText(contouredImage1, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale,
+                blue,
                 textThinkness);
         line(contouredImage1, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
         putText(contouredImage1, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
@@ -441,7 +575,8 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
     // calcuate the distance from the bounding rectangle to the polygon - smaller distance <-> less skwed image
     double distance = 0;
     for (int j = 0; j < 4; j++) {
-        putText(contouredImage1, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+        putText(contouredImage1, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,
+                textScale,
                 black, textThinkness, LINE_8);
         line(contouredImage1, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
 
@@ -493,11 +628,13 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
 
     for (int j = 0; j < 4; j++) {
         line(contouredImage2, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage2, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale, red,
+        putText(contouredImage2, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+                red,
                 textThinkness);
         line(contouredImage2, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3,
              LINE_AA);
-        putText(contouredImage2, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+        putText(contouredImage2, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,
+                textScale,
                 orange, textThinkness);
         line(contouredImage2, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
     }

@@ -85,7 +85,7 @@
         android:layout_marginTop="16dp"
         android:ems="10"
         android:inputType="number"
-        android:text="10"
+        android:text="5"
         app:layout_constraintStart_toStartOf="@+id/guideline_left"
         app:layout_constraintTop_toTopOf="@+id/sharpness_label" />
 
@@ -97,7 +97,7 @@
         android:layout_weight="1"
         android:ems="10"
         android:inputType="number"
-        android:text="300"
+        android:text="3000"
         app:layout_constraintStart_toStartOf="@+id/guideline_left"
         app:layout_constraintTop_toTopOf="@+id/distance_label" />
 
@@ -105,7 +105,7 @@
         android:id="@+id/dev_images"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:checked="false"
+        android:checked="true"
         android:text="@null"
         app:layout_constraintStart_toStartOf="@+id/guideline_left"
         app:layout_constraintTop_toTopOf="@+id/dev_images_label" />

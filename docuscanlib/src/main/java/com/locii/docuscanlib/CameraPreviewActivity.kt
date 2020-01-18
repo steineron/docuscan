@@ -36,6 +36,7 @@ import androidx.camera.core.ImageCapture.OnImageCapturedListener
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import kotlinx.android.synthetic.main.main_camera.*
 import org.opencv.android.Utils
 import org.opencv.core.CvType.CV_8UC4
 import org.opencv.core.Mat
@@ -72,7 +73,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             ratio: Float,
             distance: Int = 300,
             sharpness: Int = 10,
-            dev:Boolean = true
+            dev: Boolean = true
         ): Intent =
             Intent(context, CameraPreviewActivity::class.java)
                 .putExtra("ratio", ratio)
@@ -314,7 +315,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             val nativeDocScanner = object : DocuScan() {
 
                 override fun onIntermitentMat(matAddrOut: Long) {
-                    if(!isDev){
+                    if (!isDev) {
                         return
                     }
                     Log.d("LOCII", "onIntermitentMat: mat address: $matAddrOut")
@@ -354,7 +355,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                                 paths.add(path)
                                 val data = Intent()
                                     .putExtra("paths", paths.toTypedArray())
-                                    .putExtra("duration", System.currentTimeMillis()-startTime)
+                                    .putExtra("duration", System.currentTimeMillis() - startTime)
 
                                 setResult(RESULT_OK, data)
 //                                result.release()
