@@ -27,7 +27,7 @@ private:
     int lineMinWidth = 200;
     int maxLineGap = 10;
     int edges = 3;
-    int gutterSize=50;
+    int gutterSize = 50;
 public:
 
     DocuScan() : topLeft(Point2f()), bottomRight() {}
@@ -113,8 +113,8 @@ public:
 static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &contouredImage2,
                          DocuScan &scanParams);
 
-static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
-                                const Mat &contouredImage2, const DocuScan &scanParams, Mat &edged);
+static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &devImage1,
+                                const Mat &devImage2, const DocuScan &scanParams, Mat &edged);
 
 static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devMat1,
                                   const Mat &devMat2, const DocuScan &scanParams,
@@ -249,7 +249,7 @@ Java_com_locii_docuscanlib_DocuScan_setNumberOfEdges(JNIEnv *, jobject, jlong na
 JNIEXPORT void
 JNICALL
 Java_com_locii_docuscanlib_DocuScan_setGutterSize(JNIEnv *, jobject, jlong nativeObject,
-                                                     jint n) {
+                                                  jint n) {
 
     DocuScan &sd = *(DocuScan *) nativeObject;
     sd.setGutterSize(n);
@@ -391,8 +391,17 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
     // Canny recommended a upper:lower ratio between 2:1 and 3:1 (see https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html)
     Canny(binary, edged, 1, 3, 3);
     binary.release();
-    return extractWithHoughLines(srcImage, mat, contouredImage1, contouredImage2, scanParams,
-                                 edged);
+    Mat *detected = extractWithHoughLines(srcImage, mat, contouredImage1, contouredImage2,
+                                          scanParams,
+                                          edged);
+    if (detected != NULL) {
+
+//         extractWithContours(srcImage, mat, contouredImage1, contouredImage2,
+//                                   scanParams,
+//                                   edged);
+         return &mat;
+    }
+    return NULL;
 }
 
 static int euclideanDistance(const Point &p1, const Point &p2) {
@@ -433,16 +442,16 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
     Point2i tr = Point2i(static_cast<int>(bottomRight.x), static_cast<int>(topLeft.y));
     Point2i br = Point2i(static_cast<int>(bottomRight.x), static_cast<int>(bottomRight.y));
 
-    if(scanParams.getDevMode()){
+    if (scanParams.getDevMode()) {
         // draw the guide
-        rectangle(devMat1,topLeft,bottomRight, Scalar(255,255,128,128),3,LINE_AA);
+        rectangle(devMat1, topLeft, bottomRight, Scalar(255, 255, 128, 128), 3, LINE_AA);
     }
 
 
     int width = tr.x - tl.x;
     int height = bl.y - tl.y;
     int gutter = scanParams.getGutterSize();
-    int dw =  gutter;
+    int dw = gutter;
     int dh = gutter;
 
     // crate 4 ROI to scan the lines in:
@@ -504,9 +513,9 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
             // figure out the lines closest to the roi's top and bottom
             //  left + right
             int d1 = euclideanDistance(lp1, metaData.roi.tl()) +
-                    euclideanDistance(lp2, metaData.roi.br());
+                     euclideanDistance(lp2, metaData.roi.br());
             int d2 = euclideanDistance(lp2, metaData.roi.tl()) +
-                    euclideanDistance(lp1, metaData.roi.br());
+                     euclideanDistance(lp1, metaData.roi.br());
             if (d1 <= metaData.distance || d2 <= metaData.distance) {
                 metaData.distance = MIN(d1, d2);
                 metaData.selectedLine = l;
@@ -545,10 +554,29 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
 }
 
 
-static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
-                                const Mat &contouredImage2, const DocuScan &scanParams,
+static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &devImage1,
+                                const Mat &devImage2, const DocuScan &scanParams,
                                 Mat &edged) {
+
+    // create a ROI containing the all rois in the previous step:
+    const Point2f &topLeft = scanParams.getTopLeft();
+    const Point2f &bottomRight = scanParams.getBottomRight();
+
+    int width = static_cast<int>(bottomRight.x - topLeft.x);
+    int height = static_cast<int>(bottomRight.y - topLeft.y);
+    int gutter = scanParams.getGutterSize();
+    int dw = gutter;
+    int dh = gutter;
+
+    // crate 4 ROI to scan the lines in:
+    Rect roi = Rect(static_cast<int>(topLeft.x) - dw,
+                    static_cast<int>(topLeft.y) - dh,
+                    width + 2 * dw,
+                    height + 2 * dh);
+
     ostringstream msg;
+    edged = edged(roi);
+
     // find contours in hte canny image (edged)
     int levels = 3;
     vector<vector<Point> > contours;
@@ -573,7 +601,7 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
     int maxAreaContour = 0, maxArea = 0;
     vector<Point> approxPoly;
     for (int i = 0; i < contours.size(); i++) {
-        int current = contourArea(contours[i], false);
+        int current = static_cast<int>(contourArea(contours[i], false));
 
         if (current > maxArea) {
             // check the shape of it:
@@ -593,8 +621,7 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
     }
 
     // was a guide provided in the params?
-    Point2f topLeft = scanParams.getTopLeft();
-    Point2f bottomRight = scanParams.getBottomRight();
+
     bool hasValidGuide =
             topLeft.x > 0.0 && topLeft.y > 0.0 && bottomRight.x > 0.0 && bottomRight.y > 0.0;
 
@@ -636,7 +663,7 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
     }
 
 
-    drawContours(contouredImage1, contours, maxAreaContour, Scalar(128, 255, 255),
+    drawContours(devImage2, contours, maxAreaContour, Scalar(128, 64, 255, 255),
                  3, LINE_AA, hierarchy, abs(_levels));
 
 
@@ -675,16 +702,16 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
 
 
     for (int j = 0; j < 4; j++) {
-        line(contouredImage1, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
-        putText(contouredImage1, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale,
+        line(devImage1, approxPoly[j], approxPoly[(j + 1) % 4], blue, 3, LINE_AA);
+        putText(devImage1, numbers[j], approxPoly[j], FONT_HERSHEY_SIMPLEX, textScale,
                 blue,
                 textThinkness);
-        line(contouredImage1, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage1, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
+        line(devImage1, box[j], box[(j + 1) % 4], red, 3, LINE_AA);
+        putText(devImage1, numbers[j], box[j], FONT_HERSHEY_SIMPLEX, textScale, red,
                 textThinkness);
     }
     // draw the bounding rect
-    rectangle(contouredImage1, Point(boundRect.x, boundRect.y),
+    rectangle(devImage1, Point(boundRect.x, boundRect.y),
               Point(boundRect.x + boundRect.width, boundRect.y + boundRect.height), black, 3,
               LINE_AA);
 
@@ -703,10 +730,10 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
     // calcuate the distance from the bounding rectangle to the polygon - smaller distance <-> less skwed image
     double distance = 0;
     for (int j = 0; j < 4; j++) {
-        putText(contouredImage1, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,
+        putText(devImage1, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,
                 textScale,
                 black, textThinkness, LINE_8);
-        line(contouredImage1, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
+        line(devImage1, boundingRectPoints[j], polyPoints[j], orange, 3, LINE_AA);
 
         distance += pow(boundingRectPoints[j].x - polyPoints[j].x, 2) +
                     pow(boundingRectPoints[j].y - polyPoints[j].y, 2);
@@ -755,16 +782,16 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
 
 
     for (int j = 0; j < 4; j++) {
-        line(contouredImage2, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
-        putText(contouredImage2, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
+        line(devImage2, polyPoints[j], polyPoints[(j + 1) % 4], red, 3, LINE_AA);
+        putText(devImage2, numbers[j], polyPoints[j], FONT_HERSHEY_SIMPLEX, textScale,
                 red,
                 textThinkness);
-        line(contouredImage2, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3,
+        line(devImage2, boundingRectPoints[j], boundingRectPoints[(j + 1) % 4], orange, 3,
              LINE_AA);
-        putText(contouredImage2, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,
+        putText(devImage2, numbers[j], boundingRectPoints[j], FONT_HERSHEY_SIMPLEX,
                 textScale,
                 orange, textThinkness);
-        line(contouredImage2, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
+        line(devImage2, boundingRectPoints[j], polyPoints[j], blue, 3, LINE_AA);
     }
 
 
@@ -774,8 +801,8 @@ static Mat *extractWithContours(const Mat &srcImage, Mat &mat, const Mat &contou
 
     Mat cropped(transformed, boundRect);
     cropped.copyTo(mat);
-//    contouredImage1.copyTo(temp1);
-//    contouredImage2.copyTo(temp2);
+//    devImage1.copyTo(temp1);
+//    devImage2.copyTo(temp2);
     return &mat;
 }
 
