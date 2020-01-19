@@ -79,6 +79,11 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 3
             }
+            val gutter = try {
+                edit_gutter.text.toString().toInt()
+            } catch (e: Exception) {
+                50
+            }
 
             getSharedPreferences("MainActivity", Context.MODE_PRIVATE).edit().run {
                 putInt("distance", distance)
@@ -87,6 +92,7 @@ class MainActivity : AppCompatActivity() {
                 putInt("linesThreshold", threshold)
                 putInt("maxLineGap", gap)
                 putInt("edges", edges)
+                putInt("gutter", gutter)
                 putBoolean("dev", dev_images.isChecked)
                 commit()
             }
@@ -102,6 +108,7 @@ class MainActivity : AppCompatActivity() {
                     threshold,
                     gap,
                     edges,
+                    gutter,
                     dev_images.isChecked
                 ), 126
             )

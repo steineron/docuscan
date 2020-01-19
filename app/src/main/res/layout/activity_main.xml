@@ -76,12 +76,20 @@
         app:layout_constraintTop_toBottomOf="@+id/edit_gap" />
 
     <TextView
+        android:id="@+id/gutter_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Gutter (pxl)"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/edit_sides" />
+
+    <TextView
         android:id="@+id/dev_images_label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Save stages"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/edit_sides" />
+        app:layout_constraintTop_toBottomOf="@+id/edit_gutter" />
 
 
     <EditText
@@ -154,6 +162,18 @@
         android:text="3"
         app:layout_constraintStart_toStartOf="@+id/guideline_left"
         app:layout_constraintTop_toTopOf="@+id/sides_label" />
+
+    <EditText
+        android:id="@+id/edit_gutter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_weight="1"
+        android:ems="10"
+        android:inputType="number"
+        android:text="50"
+        app:layout_constraintStart_toStartOf="@+id/guideline_left"
+        app:layout_constraintTop_toTopOf="@+id/gutter_label" />
 
 
     <Button

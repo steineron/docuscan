@@ -64,7 +64,15 @@ abstract class DocuScan {
             setNumberOfEdges(nativeObject, value)
         }
 
-    private external fun setNumberOfEdges(addr: Long, gap: Int)
+    private external fun setNumberOfEdges(addr: Long, edges: Int)
+
+    var gutter: Int = 10
+        set(value) {
+            field = value
+            setGutterSize(nativeObject, value)
+        }
+
+    private external fun setGutterSize(addr: Long, gutter: Int)
 
 
      var linesThreashold: Int = 50

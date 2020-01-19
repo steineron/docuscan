@@ -76,6 +76,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             linesThreshold: Int = 50,
             maxLineGap:Int =10,
             edges:Int=3,
+            gutter:Int=50,
             dev: Boolean = true
         ): Intent =
             Intent(context, CameraPreviewActivity::class.java)
@@ -86,6 +87,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 .putExtra("linesThreshold", linesThreshold)
                 .putExtra("maxLineGap", maxLineGap)
                 .putExtra("edges", edges)
+                .putExtra("gutter", gutter)
                 .putExtra("dev", dev)
     }
 
@@ -102,6 +104,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     private var maxGap: Int = 10
     private var linesThreshold: Int = 50
     private var edges: Int = 3
+    private var gutter: Int = 50
     private var isDev: Boolean = false
 
     // optional TL and BR that define the ROI (Region Of Interest) rect
@@ -188,6 +191,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         minLineLength = intent.getIntExtra("minLineLength", -1)
         maxGap = intent.getIntExtra("maxLineGap", -1)
         edges = intent.getIntExtra("edges", 3)
+        gutter = intent.getIntExtra("gutter", 50)
         isDev = intent.getBooleanExtra("dev", false)
         // Add this at the end of onCreate function
 
@@ -296,6 +300,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
     private fun createPreview(): Preview {
 
+
         val screen =
             Size(textureView.width, textureView.height) //size of the screen
 
@@ -306,11 +311,14 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         val preview = Preview(previewConfig)
 
         preview.setOnPreviewOutputUpdateListener { output ->
-            val parent = textureView.parent as ViewGroup
-            parent.removeView(textureView)
-            parent.addView(textureView, 0)
-            textureView.surfaceTexture = output.surfaceTexture
-            updateTransform()
+            if(processFrames) {
+
+                val parent = textureView.parent as ViewGroup
+                parent.removeView(textureView)
+                parent.addView(textureView, 0)
+                textureView.surfaceTexture = output.surfaceTexture
+                updateTransform()
+            }
         }
         return preview
     }
@@ -386,7 +394,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
             init {
                 nativeDocScanner.distance =
-                    if (documentDistance > 0) documentDistance * 1000 else 300000
+                    if (documentDistance > 0) documentDistance else 3000
                 nativeDocScanner.sharpness = if (documentSharpness > 0) documentSharpness else 10
                 nativeDocScanner.guidingRect = RectF(
                     topLeft?.x?.toFloat() ?: 0.0f,
@@ -399,6 +407,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
                 nativeDocScanner.minLineLength = minLineLength
                 nativeDocScanner.maxGap = maxGap
                 nativeDocScanner.edges = edges
+                nativeDocScanner.gutter = gutter
             }
 
             /**
@@ -481,51 +490,51 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         mat.release()
         return Pair(path, success)
     }
-
-    private fun createImageCapture(): ImageCapture? {
-        val imageCaptureConfig =
-            ImageCaptureConfig.Builder().setCaptureMode(ImageCapture.CaptureMode.MIN_LATENCY)
-                .setTargetRotation(windowManager.defaultDisplay.rotation).build()
-        val imgCapture = ImageCapture(imageCaptureConfig)
-
-        imgCapture.takePicture(
-            Executors.newSingleThreadExecutor(),
-            object : OnImageCapturedListener() {
-                override fun onCaptureSuccess(
-                    image: ImageProxy,
-                    rotationDegrees: Int
-                ) {
-                    val bitmap: Bitmap = textureView.bitmap
-//                        showAcceptedRejectedButton(true)
-//                        ivBitmap.setImageBitmap(bitmap)
-                }
-
-                override fun onError(
-                    imageCaptureError: ImageCapture.ImageCaptureError,
-                    message: String,
-                    cause: Throwable?
-                ) {
-                    super.onError(imageCaptureError, message, cause)
-                }
-            })
-        /*File file = new File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "" + System.currentTimeMillis() + "_JDCameraX.jpg");
-        imgCapture.takePicture(file, new ImageCapture.OnImageSavedListener() {
-            @Override
-            public void onImageSaved(@NonNull File file) {
-                Bitmap bitmap = textureView.getBitmap();
-                showAcceptedRejectedButton(true);
-                ivBitmap.setImageBitmap(bitmap);
-            }
-
-            @Override
-            public void onError(@NonNull ImageCapture.UseCaseError useCaseError, @NonNull String message, @Nullable Throwable cause) {
-
-            }
-        });*/
-
-        return imgCapture
-    }
+//
+//    private fun createImageCapture(): ImageCapture? {
+//        val imageCaptureConfig =
+//            ImageCaptureConfig.Builder().setCaptureMode(ImageCapture.CaptureMode.MIN_LATENCY)
+//                .setTargetRotation(windowManager.defaultDisplay.rotation).build()
+//        val imgCapture = ImageCapture(imageCaptureConfig)
+//
+//        imgCapture.takePicture(
+//            Executors.newSingleThreadExecutor(),
+//            object : OnImageCapturedListener() {
+//                override fun onCaptureSuccess(
+//                    image: ImageProxy,
+//                    rotationDegrees: Int
+//                ) {
+//                    val bitmap: Bitmap = textureView.bitmap
+////                        showAcceptedRejectedButton(true)
+////                        ivBitmap.setImageBitmap(bitmap)
+//                }
+//
+//                override fun onError(
+//                    imageCaptureError: ImageCapture.ImageCaptureError,
+//                    message: String,
+//                    cause: Throwable?
+//                ) {
+//                    super.onError(imageCaptureError, message, cause)
+//                }
+//            })
+//        /*File file = new File(
+//                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "" + System.currentTimeMillis() + "_JDCameraX.jpg");
+//        imgCapture.takePicture(file, new ImageCapture.OnImageSavedListener() {
+//            @Override
+//            public void onImageSaved(@NonNull File file) {
+//                Bitmap bitmap = textureView.getBitmap();
+//                showAcceptedRejectedButton(true);
+//                ivBitmap.setImageBitmap(bitmap);
+//            }
+//
+//            @Override
+//            public void onError(@NonNull ImageCapture.UseCaseError useCaseError, @NonNull String message, @Nullable Throwable cause) {
+//
+//            }
+//        });*/
+//
+//        return imgCapture
+//    }
 
     private fun updateTransform() {
         val matrix = Matrix()

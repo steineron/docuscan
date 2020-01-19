@@ -27,6 +27,7 @@ private:
     int lineMinWidth = 200;
     int maxLineGap = 10;
     int edges = 3;
+    int gutterSize=50;
 public:
 
     DocuScan() : topLeft(Point2f()), bottomRight() {}
@@ -83,6 +84,14 @@ public:
         DocuScan::edges = edges;
     }
 
+    int getGutterSize() const {
+        return gutterSize;
+    }
+
+    void setGutterSize(int gutterSize) {
+        DocuScan::gutterSize = gutterSize;
+    }
+
     void setDistance(int d) {
         distance = d;
     }
@@ -117,7 +126,7 @@ static void logOStream(ostringstream &ios);
 
 void dilateAndErode(const Mat &mat);
 
-static int eucledeanDistance(const Point &p1, const Point &p2);
+static int euclideanDistance(const Point &p1, const Point &p2);
 
 Mat *extractWithCountours(const Mat &srcImage, Mat &mat, const Mat &contouredImage1,
                           const Mat &contouredImage2, const DocuScan &scanParams, Mat &edge1,
@@ -232,10 +241,18 @@ Java_com_locii_docuscanlib_DocuScan_setMaxLineGap(JNIEnv *, jobject, jlong nativ
 JNIEXPORT void
 JNICALL
 Java_com_locii_docuscanlib_DocuScan_setNumberOfEdges(JNIEnv *, jobject, jlong nativeObject,
-                                                  jint n) {
+                                                     jint n) {
 
     DocuScan &sd = *(DocuScan *) nativeObject;
     sd.setEdges(n);
+}
+JNIEXPORT void
+JNICALL
+Java_com_locii_docuscanlib_DocuScan_setGutterSize(JNIEnv *, jobject, jlong nativeObject,
+                                                     jint n) {
+
+    DocuScan &sd = *(DocuScan *) nativeObject;
+    sd.setGutterSize(n);
 }
 
 
@@ -253,17 +270,17 @@ Java_com_locii_docuscanlib_DocuScan_setGuide(JNIEnv *, jobject, jlong nativeObje
 
 }
 
-inline std::ostream &operator<< (std::ostream &s, const DocuScan &p)
-{
+inline std::ostream &operator<<(std::ostream &s, const DocuScan &p) {
     return s << "[Dist: " << p.getDistance()
-    << ", Sharp : " << p.getSharpness()
-    << ", Edges : " << p.getEdges()
-    << ", Gap : " << p.getMaxLineGap()
-    << ", Thrsh: " << p.getLinesThreshold()
-    << ", Min Line: " << p.getLineMinWidth()
-    << ", TL: " << p.getTopLeft()
-    << ", BR: " << p.getBottomRight()
-    << ", Dev: " << p.getDevMode() <<"]";
+             << ", Sharp : " << p.getSharpness()
+             << ", Edges : " << p.getEdges()
+             << ", Gap : " << p.getMaxLineGap()
+             << ", Thrsh: " << p.getLinesThreshold()
+             << ", Min Line: " << p.getLineMinWidth()
+             << ", Gutter: " << p.getGutterSize()
+             << ", TL: " << p.getTopLeft()
+             << ", BR: " << p.getBottomRight()
+             << ", Dev: " << p.getDevMode() << "]";
 }
 
 /**
@@ -378,8 +395,8 @@ static Mat *processImage(Mat &srcImage, Mat &mat, Mat &contouredImage1, Mat &con
                                  edged);
 }
 
-static int eucledeanDistance(const Point &p1, const Point &p2) {
-    return static_cast<int>(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2));
+static int euclideanDistance(const Point &p1, const Point &p2) {
+    return static_cast<int>(sqrt(pow(p1.x - p2.x, 2) + pow(p1.y - p2.y, 2)));
 
 }
 
@@ -387,7 +404,6 @@ static int eucledeanDistance(const Point &p1, const Point &p2) {
 #define LEFT 1
 #define RIGHT 2
 #define BOTTOM 3
-#define GUTTER_RATIO 0.05
 
 class RoiMetaData {
 
@@ -417,10 +433,17 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
     Point2i tr = Point2i(static_cast<int>(bottomRight.x), static_cast<int>(topLeft.y));
     Point2i br = Point2i(static_cast<int>(bottomRight.x), static_cast<int>(bottomRight.y));
 
+    if(scanParams.getDevMode()){
+        // draw the guide
+        rectangle(devMat1,topLeft,bottomRight, Scalar(255,255,128,128),3,LINE_AA);
+    }
+
+
     int width = tr.x - tl.x;
     int height = bl.y - tl.y;
-    int dw = static_cast<int> (GUTTER_RATIO * width);
-    int dh = static_cast<int> (GUTTER_RATIO * height);
+    int gutter = scanParams.getGutterSize();
+    int dw =  gutter;
+    int dh = gutter;
 
     // crate 4 ROI to scan the lines in:
     RoiMetaData roiData[4];
@@ -469,16 +492,23 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
             msg << "Inspecting line #" << i << ": {" << lp1 << ", " << lp2 << "}";
             logOStream(msg);
 
-            Point2i p = Point(metaData.roi.x + l[0], metaData.roi.y + l[1]);
-            Point2i q = Point(metaData.roi.x + l[2], metaData.roi.y + l[3]);
+            if (scanParams.getDevMode()) {
 
-            line(devMat1, p, q, Scalar(255, 0, 255, 255), 5, LINE_AA);
+//                draw the line
+                Point2i p = Point(metaData.roi.x + l[0], metaData.roi.y + l[1]);
+                Point2i q = Point(metaData.roi.x + l[2], metaData.roi.y + l[3]);
 
-            // figure out the liens closest to the guide's top and bottom
+                line(devMat1, p, q, Scalar(255, 64, 64, 255), 5, LINE_AA);
+            }
+
+            // figure out the lines closest to the roi's top and bottom
             //  left + right
-            int d1 = eucledeanDistance(lp1, metaData.roi.tl()) + eucledeanDistance(lp2, metaData.roi.br());
-            if (d1 <= metaData.distance) {
-                metaData.distance =d1;
+            int d1 = euclideanDistance(lp1, metaData.roi.tl()) +
+                    euclideanDistance(lp2, metaData.roi.br());
+            int d2 = euclideanDistance(lp2, metaData.roi.tl()) +
+                    euclideanDistance(lp1, metaData.roi.br());
+            if (d1 <= metaData.distance || d2 <= metaData.distance) {
+                metaData.distance = MIN(d1, d2);
                 metaData.selectedLine = l;
                 msg << "Updating candidate for ROI: " << j << ", " << metaData.roi
                     << ", line: " << l
@@ -496,13 +526,15 @@ static Mat *extractWithHoughLines(const Mat &srcImage, Mat &mat, const Mat &devM
         }
 
         success++;
+        if (scanParams.getDevMode()) {
 
-        Vec4i l = metaData.selectedLine;
-        Point2i pt1 = Point(metaData.roi.x + l[0], metaData.roi.y + l[1]);
-        Point2i pt2 = Point(metaData.roi.x + l[2], metaData.roi.y + l[3]);
+            // draw the selected line
+            Vec4i l = metaData.selectedLine;
+            Point2i pt1 = Point(metaData.roi.x + l[0], metaData.roi.y + l[1]);
+            Point2i pt2 = Point(metaData.roi.x + l[2], metaData.roi.y + l[3]);
 
-        line(devMat1, pt1, pt2, Scalar(255, 255, 0, 255), 5, LINE_AA);
-
+            line(devMat1, pt1, pt2, Scalar(255, 255, 0, 255), 5, LINE_AA);
+        }
     }
 
     if (success >= scanParams.getEdges()) {
