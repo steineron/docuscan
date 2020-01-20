@@ -67,6 +67,8 @@ private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
 class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
     companion object {
+        private const val TAG = "CameraPreviewActivity"
+
         fun createGuidedBoxIntent(
             context: Context,
             ratio: Float,
@@ -143,46 +145,9 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
         //get the Top-Left, Bottom-Right points for the document (if specified)
         intent.getFloatExtra("ratio", 0f).let {
 
+            // for example - the DL is 85:55 mm
             documentRatio = it
 
-            // for example - the DL is 85:55 mm
-            if (it > 0) {
-                val display: Display = windowManager.defaultDisplay
-                val size = android.graphics.Point()
-                display.getSize(size)
-                // invert those to create a landscape effect
-                val width: Int = size.x
-                val height: Int = size.y
-
-
-                // assume the width should capture 70% of the screen and the height should match:
-                calculateGuideTLBR(it, width, height)
-
-                // add the guide view
-                guideView?.let { guide ->
-                    (guide.parent as? ViewGroup)?.apply {
-                        removeView(guide)
-                    }
-                    guideView = null
-                }
-
-                GuideView(this@CameraPreviewActivity).also { guide ->
-                    guide.topLeft =
-                        PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
-                    guide.bottomRight = PointF(
-                        bottomRight!!.x.toFloat(),
-                        bottomRight!!.y.toFloat()
-                    )
-
-                    val layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    addContentView(guide, layoutParams)
-                    guideView = guide
-
-                }
-            }
         }
 
         documentSharpness = intent.getIntExtra("sharpness", -1)
@@ -219,10 +184,10 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
     private fun updateGuideView() {
         guideView?.apply {
             topLeft =
-                PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
+                PointF(topLeft!!.x, topLeft!!.y)
             bottomRight = PointF(
-                bottomRight!!.x.toFloat(),
-                bottomRight!!.y.toFloat()
+                bottomRight!!.x,
+                bottomRight!!.y
             )
         }
     }
@@ -246,6 +211,46 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
 
 
     private fun startCamera() {
+
+        documentRatio.takeIf { (it>0)  }?.let {
+            val display: Display = windowManager.defaultDisplay
+            val size = android.graphics.Point()
+            display.getSize(size)
+
+            // invert those to create a landscape effect
+            val width: Int = size.x
+            val height: Int = size.y
+            Log.d(TAG,"Display size: ${width}x${height}")
+
+
+            // assume the width should capture 70% of the screen and the height should match:
+            calculateGuideTLBR(it, width, height)
+
+            // add the guide view
+            guideView?.let { guide ->
+                (guide.parent as? ViewGroup)?.apply {
+                    removeView(guide)
+                }
+                guideView = null
+            }
+
+            GuideView(this@CameraPreviewActivity).also { guide ->
+                guide.topLeft =
+                    PointF(topLeft!!.x.toFloat(), topLeft!!.y.toFloat())
+                guide.bottomRight = PointF(
+                    bottomRight!!.x.toFloat(),
+                    bottomRight!!.y.toFloat()
+                )
+
+                val layoutParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+                addContentView(guide, layoutParams)
+                guideView = guide
+
+            }
+        }
 
 
         // TO IMPLEMENT IMAGE CAPTURE:
@@ -305,6 +310,7 @@ class CameraPreviewActivity : AppCompatActivity(), LifecycleOwner {
             Size(textureView.width, textureView.height) //size of the screen
 
 
+        Log.d(TAG,"Texture size: ${screen.width}x${screen.height}")
         val previewConfig =
             PreviewConfig.Builder().setTargetResolution(screen)
                 .build()
